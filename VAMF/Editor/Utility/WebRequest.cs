@@ -24,7 +24,7 @@ namespace Utility {
             }
             string thumbnailFolderPath = Path.Combine(
                 System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
-                "VAMF/Thumbnail"
+                "VAMF/Thumbnail/Booth"
             ).Replace("\\", "/");
             if(!Directory.Exists(thumbnailFolderPath)) {
                 Directory.CreateDirectory(thumbnailFolderPath);
@@ -33,14 +33,14 @@ namespace Utility {
                 string thumbnailFileName = "booth_" + thumbnailUrl.Split('/')[thumbnailUrl.Split('/').Length - 2] + ".jpg";
                 thumbnailFilePath = Path.Combine(thumbnailFolderPath, thumbnailFileName);
                 if(File.Exists(thumbnailFilePath)) {
-                    return thumbnailFilePath.Replace("\\", "/").Replace(thumbnailFolderPath, "Thumbnail");
+                    return thumbnailFilePath.Replace("\\", "/").Replace(thumbnailFolderPath, "Thumbnail/Booth");
                 }
                 using(var response = await client.GetAsync(thumbnailUrl)) {
                     using(var fileStream = File.Create(thumbnailFilePath)) {
                         await response.Content.CopyToAsync(fileStream);
                     }
                 }
-                return thumbnailFilePath.Replace("\\", "/").Replace(thumbnailFolderPath, "Thumbnail");
+                return thumbnailFilePath.Replace("\\", "/").Replace(thumbnailFolderPath, "Thumbnail/Booth");
             }
         }
 
