@@ -115,7 +115,7 @@ namespace Window {
 
                 // selected AssetType && isLatest
                 foreach (var asset in filteredAssetList.Where(asset => asset.assetType == selectedAssetType && asset.isLatest).ToList()) {
-                    using (new GUILayout.VerticalScope(EditorStyles.helpBox)) {
+                    using (new GUILayout.VerticalScope(Style.assetBox)) {
                         Thumbnail.DrawThumbnail(asset.thumbnailFilePath, 200);
                         if(GUILayout.Button(asset.name, Style.assetButton)) {
                             DetailWindow.ShowWindow(asset);
@@ -270,6 +270,7 @@ namespace Window {
             public static GUIStyle syncButton;
             public static GUIStyle assetTypeButton;
             public static GUIStyle divLine;
+            public static GUIStyle assetBox;
             public static GUIStyle assetButton;
             public static GUIStyle searchTextField;
             public static GUIStyle searchButton;
@@ -293,6 +294,12 @@ namespace Window {
                 syncButton.fixedHeight = 25;
                 syncButton.alignment = TextAnchor.MiddleCenter;
                 syncButton.margin = new RectOffset(0, 20, 0, 0);
+
+                assetBox = new GUIStyle(EditorStyles.helpBox);
+                assetBox.margin = new RectOffset(5, 5, 5, 5);
+                assetBox.fixedWidth = 210;
+                assetBox.fixedHeight = 235;
+                assetBox.alignment = TextAnchor.MiddleCenter;
 
                 assetButton = new GUIStyle(EditorStyles.miniButton);
                 assetButton.fontSize = 12;
