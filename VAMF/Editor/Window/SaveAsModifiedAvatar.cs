@@ -3,6 +3,7 @@ using UnityEngine;
 using VRC.Core;
 using System.Collections.Generic;
 using System;
+using System.IO;
 
 public class SaveAsModifiedAvatar : EditorWindow {
     private Dictionary<GameObject, int> originalLayers = new Dictionary<GameObject, int>();
@@ -13,6 +14,7 @@ public class SaveAsModifiedAvatar : EditorWindow {
     private GameObject currentTarget = null;
     private int previousCullingMask;
     private bool isInitialized = false;
+    private RenderTexture previewRT = null;
 
     [MenuItem("GameObject/Save as Modified Avatar", priority = -1000000)]
     private static void ShowWindow() {
@@ -69,6 +71,11 @@ public class SaveAsModifiedAvatar : EditorWindow {
         var sceneView = SceneView.lastActiveSceneView;
         if (sceneView != null) {
             sceneView.camera.cullingMask = previousCullingMask;
+        }
+
+        if (previewRT != null) {
+            RenderTexture.ReleaseTemporary(previewRT);
+            previewRT = null;
         }
     }
 
@@ -140,28 +147,35 @@ public class SaveAsModifiedAvatar : EditorWindow {
         originalLayers.Clear();
     }
 
+    private void UpdatePreviewTexture() {
+        if (previewRT == null) {
+            previewRT = RenderTexture.GetTemporary(512, 512, 24);
+        }
+
+        SceneView sceneView = SceneView.lastActiveSceneView;
+        if (sceneView != null && sceneView.camera != null) {
+            RenderTexture previousRT = sceneView.camera.targetTexture;
+            Color previousBackgroundColor = sceneView.camera.backgroundColor;
+            CameraClearFlags previousClearFlags = sceneView.camera.clearFlags;
+            
+            sceneView.camera.targetTexture = previewRT;
+            sceneView.camera.backgroundColor = backgroundColor;
+            sceneView.camera.clearFlags = CameraClearFlags.SolidColor;
+            sceneView.camera.Render();
+            
+            sceneView.camera.targetTexture = previousRT;
+            sceneView.camera.backgroundColor = previousBackgroundColor;
+            sceneView.camera.clearFlags = previousClearFlags;
+        }
+    }
+
     private void OnGUI() {
         using(new GUILayout.HorizontalScope()) {
             Rect previewRect = GUILayoutUtility.GetRect(512, 512);
             if (Event.current.type == EventType.Repaint) {
-                SceneView sceneView = SceneView.lastActiveSceneView;
-                if (sceneView != null && sceneView.camera != null) {
-                    RenderTexture tempRT = RenderTexture.GetTemporary(512, 512, 24);
-                    RenderTexture previousRT = sceneView.camera.targetTexture;
-                    Color previousBackgroundColor = sceneView.camera.backgroundColor;
-                    CameraClearFlags previousClearFlags = sceneView.camera.clearFlags;
-                    
-                    sceneView.camera.targetTexture = tempRT;
-                    sceneView.camera.backgroundColor = backgroundColor;
-                    sceneView.camera.clearFlags = CameraClearFlags.SolidColor;
-                    sceneView.camera.Render();
-                    
-                    GUI.DrawTexture(previewRect, tempRT);
-                    
-                    sceneView.camera.targetTexture = previousRT;
-                    sceneView.camera.backgroundColor = previousBackgroundColor;
-                    sceneView.camera.clearFlags = previousClearFlags;
-                    RenderTexture.ReleaseTemporary(tempRT);
+                UpdatePreviewTexture();
+                if (previewRT != null) {
+                    GUI.DrawTexture(previewRect, previewRT);
                 }
             }
             
@@ -262,21 +276,50 @@ public class SaveAsModifiedAvatar : EditorWindow {
                 GUILayout.FlexibleSpace();
 
                 if(GUILayout.Button("Save", GUILayout.Width(210))) {
-                    if(newAssetData.name == "") {
+                    if(string.IsNullOrEmpty(newAssetData.name)) {
                         EditorUtility.DisplayDialog("Error", "Name is required", "OK");
                         return;
                     }
                     string uid = Guid.NewGuid().ToString();
+                    newAssetData.thumbnailFilePath = SaveThumbnail(uid);
+
                     newAssetData.uid = uid;
-                    //TODO: Thumbnail and UnityPackage
                     newAssetData.isLatest = true;
+                    newAssetData.assetType = AssetType.Modified;
                     Utility.AssetDataController.AddAssetData(newAssetData);
+                    Close();
                 }
                 GUILayout.Space(10);
             }
         }
     }
-        private class Style {
+    private string SaveThumbnail(string uid) {
+        string thumbnailDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "VAMF", "Thumbnail", "Modified"
+        ).Replace("\\", "/");
+        Directory.CreateDirectory(thumbnailDir);
+        string thumbnailPath = Path.Combine(thumbnailDir, $"{uid}.png");
+
+        if (previewRT != null) {
+            UpdatePreviewTexture();
+            
+            RenderTexture.active = previewRT;
+            Texture2D screenshot = new Texture2D(512, 512, TextureFormat.RGB24, false);
+            screenshot.ReadPixels(new Rect(0, 0, 512, 512), 0, 0);
+            screenshot.Apply();
+            
+            byte[] bytes = screenshot.EncodeToPNG();
+            File.WriteAllBytes(thumbnailPath, bytes);
+            
+            DestroyImmediate(screenshot);
+            RenderTexture.active = null;
+            return thumbnailPath.Replace("\\", "/").Replace(thumbnailDir, "Thumbnail/Modified");
+        }
+        return null;
+    }
+
+    private class Style {
 
         public static GUIStyle detailTitle;
         public static GUIStyle detailValue;
