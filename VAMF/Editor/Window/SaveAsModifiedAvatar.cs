@@ -4,13 +4,14 @@ using VRC.Core;
 using System.Collections.Generic;
 
 public class SaveAsModifiedAvatar : EditorWindow {
-    private Camera previewCamera;
-    private GameObject cameraObject;
-    private RenderTexture renderTexture;
     private Dictionary<GameObject, int> originalLayers = new Dictionary<GameObject, int>();
     private AssetData newAssetData = new AssetData();
     private Vector2 scrollPosition = Vector2.zero;
     private const int PREVIEW_LAYER = 30;
+    private Color backgroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
+    private GameObject currentTarget = null;
+    private int previousCullingMask;
+    private bool isInitialized = false;
 
     [MenuItem("GameObject/Save as Modified Avatar", priority = -1000000)]
     private static void ShowWindow() {
@@ -27,48 +28,88 @@ public class SaveAsModifiedAvatar : EditorWindow {
     }
 
     private void OnEnable() {
-        cameraObject = new GameObject("Preview Camera");
-        previewCamera = cameraObject.AddComponent<Camera>();
+        if (!isInitialized) {
+            var sceneView = SceneView.lastActiveSceneView;
+            if (sceneView != null) {
+                previousCullingMask = sceneView.camera.cullingMask;
+            }
+            isInitialized = true;
+        }
+
+        SceneView.duringSceneGui += OnSceneGUI;
+        EditorApplication.update += OnEditorUpdate;
         
-        previewCamera.clearFlags = CameraClearFlags.SolidColor;
-        previewCamera.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 1);
-        
-        // Create and setup render texture
-        renderTexture = new RenderTexture(512, 512, 24);
-        renderTexture.antiAliasing = 8;
-        previewCamera.targetTexture = renderTexture;
-        previewCamera.aspect = 1.0f;
-        previewCamera.cullingMask = 1 << PREVIEW_LAYER;
-        
-        UpdateCameraPosition();
+        if (Selection.activeGameObject != null) {
+            currentTarget = Selection.activeGameObject;
+            StoreAndChangeLayer(currentTarget);
+            FocusOnSelectedObject();
+        }
+
+        // ウィンドウがアクティブになった時に設定を復元
+        UpdateSceneViewSettings();
     }
 
-    private void UpdateCameraPosition() {
-        if(Selection.activeGameObject == null) return;
+    private void OnDestroy() {
+        CleanUp();
+    }
 
-        // Store and change layer settings for preview
-        StoreAndChangeLayer(Selection.activeGameObject);
+    private void CleanUp() {
+        SceneView.duringSceneGui -= OnSceneGUI;
+        EditorApplication.update -= OnEditorUpdate;
+        RestoreOriginalLayers();
+        
+        // シーンビューの設定を元に戻す
+        var sceneView = SceneView.lastActiveSceneView;
+        if (sceneView != null) {
+            sceneView.camera.cullingMask = previousCullingMask;
+        }
+    }
 
-        //Calculate diagonal length of bounding box from all avatar renderers
+    private void UpdateSceneViewSettings() {
+        var sceneView = SceneView.lastActiveSceneView;
+        if (sceneView != null && currentTarget != null) {
+            sceneView.camera.cullingMask = 1 << PREVIEW_LAYER;
+            sceneView.Repaint();
+        }
+    }
+
+    private void OnEditorUpdate() {
+        if (Selection.activeGameObject != null && Selection.activeGameObject != currentTarget) {
+            if (currentTarget != null) {
+                RestoreOriginalLayers();
+            }
+            currentTarget = Selection.activeGameObject;
+            StoreAndChangeLayer(currentTarget);
+            FocusOnSelectedObject();
+        }
+        Repaint();
+    }
+
+    private void OnSceneGUI(SceneView sceneView) {
+        UpdateSceneViewSettings();
+    }
+
+    private void FocusOnSelectedObject() {
+        if (Selection.activeGameObject == null) return;
+
         var renderers = Selection.activeGameObject.GetComponentsInChildren<Renderer>();
-        if(renderers.Length == 0) return;
+        if (renderers.Length == 0) return;
+
         Bounds bounds = renderers[0].bounds;
-        for(int i = 1; i < renderers.Length; i++) {
+        for (int i = 1; i < renderers.Length; i++) {
             bounds.Encapsulate(renderers[i].bounds);
         }
-        float diagonal = bounds.size.magnitude;
-        
-        //Calculate distance needed to show full body
-        float fov = 60f;
-        previewCamera.fieldOfView = fov;
-        float distance = (diagonal * 0.25f) / Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad);
-        
-        //Set camera position (offset 5% downward)
-        previewCamera.transform.position = bounds.center + Vector3.forward * distance + Vector3.down * (bounds.size.y * 0.05f);
-        
-        //Set camera rotation
-        Vector3 lookAtPoint = new Vector3(bounds.center.x, previewCamera.transform.position.y, bounds.center.z);
-        previewCamera.transform.LookAt(lookAtPoint);
+
+        float scale = 0.6f;
+        Vector3 center = bounds.center;
+        bounds.size *= scale;
+        bounds.center = center;
+
+        SceneView sceneView = SceneView.lastActiveSceneView;
+        if (sceneView != null) {
+            sceneView.Frame(bounds, false);
+            sceneView.rotation = Quaternion.Euler(0, -180, 0);
+        }
     }
 
     private void StoreAndChangeLayer(GameObject obj) {
@@ -89,28 +130,35 @@ public class SaveAsModifiedAvatar : EditorWindow {
         originalLayers.Clear();
     }
 
-    private void OnDisable() {
-        RestoreOriginalLayers();
-        if(cameraObject != null) {
-            DestroyImmediate(cameraObject);
-        }
-        if(renderTexture != null) {
-            renderTexture.Release();
-            DestroyImmediate(renderTexture);
-        }
-    }
-
     private void OnGUI() {
         using(new GUILayout.HorizontalScope()) {
-            if(renderTexture != null) {
-                // Calculate centered rect for preview
-                Rect previewRect = GUILayoutUtility.GetRect(512, 512);
-                EditorGUI.DrawPreviewTexture(previewRect, renderTexture);
-                Repaint();
+            Rect previewRect = GUILayoutUtility.GetRect(512, 512);
+            if (Event.current.type == EventType.Repaint) {
+                SceneView sceneView = SceneView.lastActiveSceneView;
+                if (sceneView != null && sceneView.camera != null) {
+                    RenderTexture tempRT = RenderTexture.GetTemporary(512, 512, 24);
+                    RenderTexture previousRT = sceneView.camera.targetTexture;
+                    Color previousBackgroundColor = sceneView.camera.backgroundColor;
+                    CameraClearFlags previousClearFlags = sceneView.camera.clearFlags;
+                    
+                    sceneView.camera.targetTexture = tempRT;
+                    sceneView.camera.backgroundColor = backgroundColor;
+                    sceneView.camera.clearFlags = CameraClearFlags.SolidColor;
+                    sceneView.camera.Render();
+                    
+                    GUI.DrawTexture(previewRect, tempRT);
+                    
+                    sceneView.camera.targetTexture = previousRT;
+                    sceneView.camera.backgroundColor = previousBackgroundColor;
+                    sceneView.camera.clearFlags = previousClearFlags;
+                    RenderTexture.ReleaseTemporary(tempRT);
+                }
             }
+            
             GUILayout.Space(20);
             using(var scrollView = new GUILayout.ScrollViewScope(scrollPosition)) {
                 scrollPosition = scrollView.scrollPosition;
+
                 GUILayout.Label("Name", Style.detailTitle);
                 newAssetData.name = GUILayout.TextField(newAssetData.name, GUILayout.Width(210));
 
@@ -196,6 +244,10 @@ public class SaveAsModifiedAvatar : EditorWindow {
                         }
                     }, Utility.AssetDataController.GetAllAssetData(), newAssetData.oldVersions);
                 }
+
+                GUILayout.Label("Background Color", Style.detailTitle);
+                backgroundColor = EditorGUILayout.ColorField(backgroundColor, GUILayout.Width(210));
+                GUILayout.Space(10);
             }
         }
     }
