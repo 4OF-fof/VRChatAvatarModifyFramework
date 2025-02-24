@@ -361,7 +361,7 @@ public class DetailWindow: EditorWindow {
                 GUILayout.Label("Description", Style.detailTitle);
                 float height = Style.descriptionTextArea.CalcHeight(new GUIContent(tmpAssetData.description), EditorGUIUtility.currentViewWidth - 40);
                 float previousHeight = height;
-                tmpAssetData.description = GUILayout.TextArea(
+                tmpAssetData.description = EditorGUILayout.TextArea(
                     tmpAssetData.description,
                     Style.descriptionTextArea,
                     GUILayout.Height(Mathf.Max(80, height))
