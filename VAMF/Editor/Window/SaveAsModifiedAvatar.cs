@@ -112,11 +112,22 @@ public class SaveAsModifiedAvatar : EditorWindow {
     }
 
     private void StoreAndChangeLayer(GameObject obj) {
+        if (obj == null) return;
+        
+        RestoreOriginalLayers();
         originalLayers.Clear();
+        
         var transforms = obj.GetComponentsInChildren<Transform>(true);
         foreach(var transform in transforms) {
-            originalLayers[transform.gameObject] = transform.gameObject.layer;
-            transform.gameObject.layer = PREVIEW_LAYER;
+            if (transform != null && transform.gameObject != null) {
+                originalLayers[transform.gameObject] = transform.gameObject.layer;
+            }
+        }
+
+        foreach(var transform in transforms) {
+            if (transform != null && transform.gameObject != null) {
+                transform.gameObject.layer = PREVIEW_LAYER;
+            }
         }
     }
 
