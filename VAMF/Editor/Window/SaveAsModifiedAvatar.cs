@@ -18,6 +18,14 @@ public class SaveAsModifiedAvatar : EditorWindow {
         var window = GetWindow<SaveAsModifiedAvatar>("Save as Modified Avatar");
         window.minSize = new Vector2(768, 512);
         window.maxSize = new Vector2(768, 512);
+        
+        if (Selection.activeGameObject != null) {
+            window.currentTarget = Selection.activeGameObject;
+            window.StoreAndChangeLayer(window.currentTarget);
+            window.FocusOnSelectedObject();
+            window.UpdateSceneViewSettings();
+        }
+        
         window.Show();
     }
 
@@ -74,14 +82,6 @@ public class SaveAsModifiedAvatar : EditorWindow {
     }
 
     private void OnEditorUpdate() {
-        if (Selection.activeGameObject != null && Selection.activeGameObject != currentTarget) {
-            if (currentTarget != null) {
-                RestoreOriginalLayers();
-            }
-            currentTarget = Selection.activeGameObject;
-            StoreAndChangeLayer(currentTarget);
-            FocusOnSelectedObject();
-        }
         Repaint();
     }
 
