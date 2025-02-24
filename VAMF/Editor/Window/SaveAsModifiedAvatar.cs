@@ -1,14 +1,20 @@
 using UnityEditor;
 using UnityEngine;
 using VRC.Core;
+using System.Collections.Generic;
 
 public class SaveAsModifiedAvatar : EditorWindow {
     private Camera previewCamera;
     private GameObject cameraObject;
+    private RenderTexture renderTexture;
+    private Dictionary<GameObject, int> originalLayers = new Dictionary<GameObject, int>();
+    private const int PREVIEW_LAYER = 30;
 
     [MenuItem("GameObject/Save as Modified Avatar", priority = -1000000)]
     private static void ShowWindow() {
         var window = GetWindow<SaveAsModifiedAvatar>("Save as Modified Avatar");
+        window.minSize = new Vector2(512, 512);
+        window.maxSize = new Vector2(512, 512);
         window.Show();
     }
 
@@ -25,11 +31,21 @@ public class SaveAsModifiedAvatar : EditorWindow {
         previewCamera.clearFlags = CameraClearFlags.SolidColor;
         previewCamera.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 1);
         
+        // Create and setup render texture
+        renderTexture = new RenderTexture(512, 512, 24);
+        renderTexture.antiAliasing = 8;
+        previewCamera.targetTexture = renderTexture;
+        previewCamera.aspect = 1.0f;
+        previewCamera.cullingMask = 1 << PREVIEW_LAYER;
+        
         UpdateCameraPosition();
     }
 
     private void UpdateCameraPosition() {
         if(Selection.activeGameObject == null) return;
+
+        // Store and change layer settings for preview
+        StoreAndChangeLayer(Selection.activeGameObject);
 
         //Calculate diagonal length of bounding box from all avatar renderers
         var renderers = Selection.activeGameObject.GetComponentsInChildren<Renderer>();
@@ -53,13 +69,41 @@ public class SaveAsModifiedAvatar : EditorWindow {
         previewCamera.transform.LookAt(lookAtPoint);
     }
 
+    private void StoreAndChangeLayer(GameObject obj) {
+        originalLayers.Clear();
+        var transforms = obj.GetComponentsInChildren<Transform>(true);
+        foreach(var transform in transforms) {
+            originalLayers[transform.gameObject] = transform.gameObject.layer;
+            transform.gameObject.layer = PREVIEW_LAYER;
+        }
+    }
+
+    private void RestoreOriginalLayers() {
+        foreach(var kvp in originalLayers) {
+            if(kvp.Key != null) {
+                kvp.Key.layer = kvp.Value;
+            }
+        }
+        originalLayers.Clear();
+    }
+
     private void OnDisable() {
+        RestoreOriginalLayers();
         if(cameraObject != null) {
             DestroyImmediate(cameraObject);
+        }
+        if(renderTexture != null) {
+            renderTexture.Release();
+            DestroyImmediate(renderTexture);
         }
     }
 
     private void OnGUI() {
-        EditorGUILayout.LabelField("Save as Modified Avatar");
+        if (renderTexture != null) {
+            // Calculate centered rect for preview
+            Rect previewRect = GUILayoutUtility.GetRect(512, 512);
+            EditorGUI.DrawPreviewTexture(previewRect, renderTexture);
+            Repaint();
+        }
     }
 }
