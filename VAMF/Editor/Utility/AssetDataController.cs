@@ -108,6 +108,16 @@ namespace Utility {
             }
         }
 
+        public static void AddAssetData(AssetData assetData) {
+            List<AssetData> assetList = GetAllAssetData();
+            if(assetList.Find(asset => asset.uid == assetData.uid) != null) {
+                Debug.LogError($"Asset uid is not unique: {assetData.uid}");
+                return;
+            }
+            assetList.Add(assetData);
+            SaveAssetDataList(assetList);
+        }
+
         public static void UpdateAssetData(string uid, AssetData assetData) {
             List<AssetData> assetList = GetAllAssetData();
             int index = assetList.FindIndex(asset => asset.uid == uid);

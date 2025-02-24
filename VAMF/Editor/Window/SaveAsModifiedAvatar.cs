@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using VRC.Core;
 using System.Collections.Generic;
+using System;
 
 public class SaveAsModifiedAvatar : EditorWindow {
     private Dictionary<GameObject, int> originalLayers = new Dictionary<GameObject, int>();
@@ -53,7 +54,6 @@ public class SaveAsModifiedAvatar : EditorWindow {
             FocusOnSelectedObject();
         }
 
-        // ウィンドウがアクティブになった時に設定を復元
         UpdateSceneViewSettings();
     }
 
@@ -66,7 +66,6 @@ public class SaveAsModifiedAvatar : EditorWindow {
         EditorApplication.update -= OnEditorUpdate;
         RestoreOriginalLayers();
         
-        // シーンビューの設定を元に戻す
         var sceneView = SceneView.lastActiveSceneView;
         if (sceneView != null) {
             sceneView.camera.cullingMask = previousCullingMask;
@@ -247,6 +246,21 @@ public class SaveAsModifiedAvatar : EditorWindow {
 
                 GUILayout.Label("Background Color", Style.detailTitle);
                 backgroundColor = EditorGUILayout.ColorField(backgroundColor, GUILayout.Width(210));
+                GUILayout.Space(10);
+
+                GUILayout.FlexibleSpace();
+
+                if(GUILayout.Button("Save", GUILayout.Width(210))) {
+                    if(newAssetData.name == "") {
+                        EditorUtility.DisplayDialog("Error", "Name is required", "OK");
+                        return;
+                    }
+                    string uid = Guid.NewGuid().ToString();
+                    newAssetData.uid = uid;
+                    //TODO: Thumbnail and UnityPackage
+                    newAssetData.isLatest = true;
+                    Utility.AssetDataController.AddAssetData(newAssetData);
+                }
                 GUILayout.Space(10);
             }
         }
