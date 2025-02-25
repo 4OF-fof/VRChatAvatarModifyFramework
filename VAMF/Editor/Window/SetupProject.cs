@@ -8,7 +8,7 @@ public class SetupProject : EditorWindow {
     private string errorMessage = "";
     private bool isValid = false;
     
-    [MenuItem("VAMF/Setup Project")]
+    [MenuItem("VAMF/Setup Project", priority = 0)]
     public static void ShowWindow() {
         SetupProject window = GetWindow<SetupProject>("Setup Project");
         window.minSize = new Vector2(350, 150);

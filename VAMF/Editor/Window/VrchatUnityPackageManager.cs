@@ -19,7 +19,7 @@ namespace Window {
         private string[] avatarNames;
         private Dictionary<string, string> avatarNameToUid;
 
-        [MenuItem("VAMF/Package Manager", priority = 0)]
+        [MenuItem("VAMF/Package Manager", priority = 1)]
         public static void ShowWindow() {
             GetWindow<VrchatUnityPackageManager>("Package Manager", typeof(SceneView));
         }
