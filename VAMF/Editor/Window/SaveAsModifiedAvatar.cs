@@ -4,6 +4,10 @@ using VRC.Core;
 using System.Collections.Generic;
 using System;
 using System.IO;
+using System.Linq;
+using System.Text;
+using System.Security.Cryptography;
+using UnityEditor.SceneManagement;
 
 public class SaveAsModifiedAvatar : EditorWindow {
     private Dictionary<GameObject, int> originalLayers = new Dictionary<GameObject, int>();
@@ -282,7 +286,9 @@ public class SaveAsModifiedAvatar : EditorWindow {
                     }
                     string uid = Guid.NewGuid().ToString();
                     newAssetData.thumbnailFilePath = SaveThumbnail(uid);
-
+                    string packagePath = exportUnityPackage(currentTarget, uid, newAssetData.name);
+                    newAssetData.filePath = packagePath;
+                    newAssetData.sourceFilePath = packagePath;
                     newAssetData.uid = uid;
                     newAssetData.isLatest = true;
                     newAssetData.assetType = AssetType.Modified;
@@ -301,7 +307,7 @@ public class SaveAsModifiedAvatar : EditorWindow {
         Directory.CreateDirectory(thumbnailDir);
         string thumbnailPath = Path.Combine(thumbnailDir, $"{uid}.png");
 
-        if (previewRT != null) {
+        if(previewRT != null) {
             UpdatePreviewTexture();
             
             RenderTexture.active = previewRT;
@@ -317,6 +323,196 @@ public class SaveAsModifiedAvatar : EditorWindow {
             return thumbnailPath.Replace("\\", "/").Replace(thumbnailDir, "Thumbnail/Modified");
         }
         return null;
+    }
+
+    private string exportUnityPackage(GameObject currentTarget, string uid, string packageName) {
+        List<string> dependencies = getDependencies(currentTarget);
+        hashCheck(dependencies, currentTarget);
+
+        string oldPath = "Assets/_Modify";
+        string newPath = $"Assets/{packageName}";
+        if (AssetDatabase.IsValidFolder(oldPath)) {
+            AssetDatabase.MoveAsset(oldPath, newPath);
+            AssetDatabase.Refresh();
+        }
+
+        dependencies = getDependencies(currentTarget);
+
+        List<string> unityPackageDependencies = dependencies.Where(dependency => dependency.StartsWith($"Assets/{packageName}")).ToList();
+        string packageDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "VAMF",
+            "Modified"
+        ).Replace("\\", "/");
+        string packagePath = Path.Combine(
+            packageDir,
+            $"{uid}.unitypackage"
+        ).Replace("\\", "/");
+        AssetDatabase.ExportPackage(unityPackageDependencies.ToArray(), packagePath);
+
+        if(AssetDatabase.IsValidFolder(newPath)) {
+            AssetDatabase.MoveAsset(newPath, oldPath);
+            AssetDatabase.Refresh();
+        }
+
+        return packagePath.Replace("\\", "/").Replace(packageDir, "Modified");
+    }
+
+    private List<string> getDependencies(GameObject currentTarget) {
+        string currentTargetPrefab = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(currentTarget);
+        return AssetDatabase.GetDependencies(currentTargetPrefab).ToList();
+    }
+
+    private void hashCheck(List<string> dependencies, GameObject currentTarget) {
+        SaveMaterialFiles();
+
+        foreach(var dependency in dependencies) {
+            string hash = CalculateFileHash(dependency);
+            string importHistoryPath = Path.Combine(
+                Application.dataPath,
+                "VAMF", "Data", "import_history.json"
+            ).Replace("\\", "/");
+            string json = File.ReadAllText(importHistoryPath);
+            var importHistory = JsonUtility.FromJson<Utility.PackageImportHistory>(json);
+            var importHistoryFile = importHistory.Files.Find(file => file.FilePath == dependency);
+            if(importHistoryFile != null) {
+                if(importHistoryFile.FileHash != hash) {
+                    moveAsset(dependency, currentTarget);
+                }
+            }
+        }
+    }
+
+    private void SaveMaterialFiles() {
+        Debug.Log("Saving material files...");
+        
+        string importHistoryPath = Path.Combine(
+            Application.dataPath,
+            "VAMF", "Data", "import_history.json"
+        ).Replace("\\", "/");
+        
+        if(!File.Exists(importHistoryPath)) {
+            Debug.LogWarning($"JSON file not found: {importHistoryPath}");
+            return;
+        }
+        
+        try {
+            string jsonContent = File.ReadAllText(importHistoryPath);
+            var importHistory = JsonUtility.FromJson<Utility.PackageImportHistory>(jsonContent);
+            
+            if(importHistory?.Files == null) {
+                Debug.LogWarning("Failed to parse JSON file");
+                return;
+            }
+            
+            int savedCount = 0;
+            
+            foreach(var fileInfo in importHistory.Files) {
+                string assetPath = fileInfo.FilePath;
+                if(assetPath.EndsWith(".mat", StringComparison.OrdinalIgnoreCase) && File.Exists(assetPath)) {
+                    try {
+                        Material material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+                        if(material != null) {
+                            EditorUtility.SetDirty(material);
+                            savedCount++;
+                        }
+                    }catch(Exception ex) {
+                        Debug.LogError($"Error saving material: {assetPath}, Error: {ex.Message}");
+                    }
+                }
+            }
+            
+            if(savedCount > 0) {
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+                Debug.Log($"{savedCount} material files saved");
+            }else {
+                Debug.Log("No material files to save");
+            }
+        }catch(Exception ex) {
+            Debug.LogError($"Error saving material files: {ex.Message}");
+        }
+    }
+
+    private void moveAsset(string dependency, GameObject currentTarget) {
+        string assetPath = dependency;
+        string directoryPath = Path.Combine(
+            "Assets",
+            "_Modify",
+            "Custom"
+        ).Replace("\\", "/");
+        
+        if (!Directory.Exists(directoryPath)) {
+            Directory.CreateDirectory(directoryPath);
+        }
+        
+        string newAssetPath = Path.Combine(
+            directoryPath,
+            Path.GetFileName(assetPath)
+        ).Replace("\\", "/");
+        
+        if(File.Exists(newAssetPath)) {
+            Debug.LogError($"File already exists: {newAssetPath}");
+            return;
+        }
+        
+        AssetDatabase.CopyAsset(assetPath, newAssetPath);
+        AssetDatabase.Refresh();
+        
+        UnityEngine.Object originalAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
+        UnityEngine.Object newAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(newAssetPath);
+        
+        if(originalAsset != null && newAsset != null) {
+            Component[] components = currentTarget.GetComponentsInChildren<Component>(true);
+            foreach(Component component in components) {
+                if(component == null) continue;
+                
+                SerializedObject serializedObject = new SerializedObject(component);
+                SerializedProperty property = serializedObject.GetIterator();
+                
+                bool modified = false;
+                
+                while(property.Next(true)) {
+                    if(property.propertyType == SerializedPropertyType.ObjectReference && 
+                        property.objectReferenceValue == originalAsset) {
+                        property.objectReferenceValue = newAsset;
+                        modified = true;
+                    }
+                }
+                
+                if(modified) {
+                    serializedObject.ApplyModifiedProperties();
+                    EditorUtility.SetDirty(component);
+                }
+            }
+            
+            EditorSceneManager.MarkSceneDirty(currentTarget.scene);
+
+            GameObject prefabRoot = PrefabUtility.GetNearestPrefabInstanceRoot(currentTarget);
+            if (prefabRoot != null) {
+                PrefabUtility.ApplyPrefabInstance(prefabRoot, InteractionMode.AutomatedAction);
+            }
+        }
+    }
+
+    private static string CalculateFileHash(string filePath) {
+        try {
+            using(var md5 = MD5.Create()) {
+                using(var stream = File.OpenRead(filePath)) {
+                    byte[] hashBytes = md5.ComputeHash(stream);
+                    StringBuilder sb = new StringBuilder();
+                    
+                    for(int i = 0; i < hashBytes.Length; i++) {
+                        sb.Append(hashBytes[i].ToString("x2"));
+                    }
+                    
+                    return sb.ToString();
+                }
+            }
+        }catch(Exception ex) {
+            Debug.LogError($"Error calculating hash for file: {filePath}, Error: {ex.Message}");
+            return "error_calculating_hash";
+        }
     }
 
     private class Style {
