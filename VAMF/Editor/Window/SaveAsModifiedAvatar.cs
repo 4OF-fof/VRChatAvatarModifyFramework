@@ -344,6 +344,9 @@ public class SaveAsModifiedAvatar : EditorWindow {
             "VAMF",
             "Modified"
         ).Replace("\\", "/");
+        if(!Directory.Exists(packageDir)) {
+            Directory.CreateDirectory(packageDir);
+        }
         string packagePath = Path.Combine(
             packageDir,
             $"{uid}.unitypackage"
@@ -354,6 +357,8 @@ public class SaveAsModifiedAvatar : EditorWindow {
             AssetDatabase.MoveAsset(newPath, oldPath);
             AssetDatabase.Refresh();
         }
+
+        RestoreOriginalReferences(currentTarget);
 
         return packagePath.Replace("\\", "/").Replace(packageDir, "Modified");
     }
@@ -439,7 +444,7 @@ public class SaveAsModifiedAvatar : EditorWindow {
         string directoryPath = Path.Combine(
             "Assets",
             "_Modify",
-            "Custom"
+            "System"
         ).Replace("\\", "/");
         
         if (!Directory.Exists(directoryPath)) {
@@ -452,8 +457,7 @@ public class SaveAsModifiedAvatar : EditorWindow {
         ).Replace("\\", "/");
         
         if(File.Exists(newAssetPath)) {
-            Debug.LogError($"File already exists: {newAssetPath}");
-            return;
+            AssetDatabase.DeleteAsset(newAssetPath);
         }
         
         AssetDatabase.CopyAsset(assetPath, newAssetPath);
@@ -512,6 +516,57 @@ public class SaveAsModifiedAvatar : EditorWindow {
         }catch(Exception ex) {
             Debug.LogError($"Error calculating hash for file: {filePath}, Error: {ex.Message}");
             return "error_calculating_hash";
+        }
+    }
+
+    private void RestoreOriginalReferences(GameObject currentTarget) {
+        string importHistoryPath = Path.Combine(
+            Application.dataPath,
+            "VAMF", "Data", "import_history.json"
+        ).Replace("\\", "/");
+
+        if (!File.Exists(importHistoryPath)) return;
+
+        string json = File.ReadAllText(importHistoryPath);
+        var importHistory = JsonUtility.FromJson<Utility.PackageImportHistory>(json);
+
+        Component[] components = currentTarget.GetComponentsInChildren<Component>(true);
+        foreach (Component component in components) {
+            if (component == null) continue;
+
+            SerializedObject serializedObject = new SerializedObject(component);
+            SerializedProperty property = serializedObject.GetIterator();
+            bool modified = false;
+
+            while (property.Next(true)) {
+                if (property.propertyType == SerializedPropertyType.ObjectReference &&
+                    property.objectReferenceValue != null) {
+                    string assetPath = AssetDatabase.GetAssetPath(property.objectReferenceValue);
+                    if (assetPath.StartsWith("Assets/_Modify/")) {
+                        string fileName = Path.GetFileName(assetPath);
+                        var originalFile = importHistory.Files.Find(f => Path.GetFileName(f.FilePath) == fileName);
+                        if (originalFile != null) {
+                            UnityEngine.Object originalAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(originalFile.FilePath);
+                            if (originalAsset != null) {
+                                property.objectReferenceValue = originalAsset;
+                                modified = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (modified) {
+                serializedObject.ApplyModifiedProperties();
+                EditorUtility.SetDirty(component);
+            }
+        }
+
+        EditorSceneManager.MarkSceneDirty(currentTarget.scene);
+
+        GameObject prefabRoot = PrefabUtility.GetNearestPrefabInstanceRoot(currentTarget);
+        if (prefabRoot != null) {
+            PrefabUtility.ApplyPrefabInstance(prefabRoot, InteractionMode.AutomatedAction);
         }
     }
 
