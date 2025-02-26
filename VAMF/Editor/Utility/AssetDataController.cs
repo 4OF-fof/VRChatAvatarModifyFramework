@@ -21,9 +21,17 @@ namespace Utility {
 
             List<AssetData> assetList = GetAllAssetData();
 
+            string modifyFolderPath = Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
+                "VAMF",
+                "Modified"
+            ).Replace("\\", "/");
+
             assetList.RemoveAll(asset => {
-                string fullPath = Path.Combine(assetFolderPath, asset.sourceFilePath.Replace("Assets/", "")).Replace("\\", "/");
-                if(!File.Exists(fullPath)) {
+                string assetFullPath = Path.Combine(assetFolderPath, asset.sourceFilePath.Replace("Assets/", "")).Replace("\\", "/");
+                string modifyFullPath = Path.Combine(modifyFolderPath, asset.sourceFilePath.Replace("Modified/", "")).Replace("\\", "/");
+                
+                if(!File.Exists(assetFullPath) && !File.Exists(modifyFullPath)) {
                     Debug.Log($"Removing asset data for non-existent file: {asset.name} ({asset.sourceFilePath})");
                     return true;
                 }
