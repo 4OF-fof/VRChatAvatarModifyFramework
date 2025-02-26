@@ -280,7 +280,7 @@ public class DetailWindow: EditorWindow {
                             tmpAssetData.supportAvatar.Add(uid);
                             Repaint();
                         }
-                    }, Utility.AssetDataController.GetAllAssetData().Where(asset => asset.assetType == AssetType.Avatar).ToList(),
+                    }, Utility.AssetDataController.GetAllAssetData().Where(asset => asset.assetType == AssetType.Avatar && asset.isLatest).ToList(),
                     tmpAssetData.supportAvatar, tmpAssetData.uid);
                 }
 

@@ -18,7 +18,7 @@ public class ItemSelector: EditorWindow {
         window.minSize = new Vector2(200, 250);
         window.maxSize = new Vector2(200, 250);
         window.onItemSelected = callback;
-        window.assetDataList = assetDataList.Where(asset => asset.isLatest).ToList();
+        window.assetDataList = assetDataList.ToList();
         window.ignoreList = ignoreList ?? new List<string>();
         window.selfUid = selfUid;
         
