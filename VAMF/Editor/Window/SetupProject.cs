@@ -85,7 +85,6 @@ public class SetupProject : EditorWindow {
             return false;
         }
         
-        Debug.Log("Verification successful: The selected prefab is a Prefab Variant and the parent is an FBX file.");
         return true;
     }
     

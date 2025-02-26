@@ -389,7 +389,6 @@ public class SaveAsModifiedAvatar : EditorWindow {
     }
 
     private void SaveMaterialFiles() {
-        Debug.Log("Saving material files...");
         
         string importHistoryPath = Path.Combine(
             Application.dataPath,
@@ -430,9 +429,6 @@ public class SaveAsModifiedAvatar : EditorWindow {
             if(savedCount > 0) {
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
-                Debug.Log($"{savedCount} material files saved");
-            }else {
-                Debug.Log("No material files to save");
             }
         }catch(Exception ex) {
             Debug.LogError($"Error saving material files: {ex.Message}");
