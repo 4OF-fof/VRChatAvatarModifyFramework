@@ -7,6 +7,7 @@ public class SetupProject : EditorWindow {
     private GameObject prefabObject;
     private string errorMessage = "";
     private bool isValid = false;
+    private bool? fbxWarningResult = null;
     
     [MenuItem("Assets/Start Modification", priority = 0)]
     private static void ShowWindowFromContext() {
@@ -36,6 +37,7 @@ public class SetupProject : EditorWindow {
         if(previousObject != prefabObject) {
             errorMessage = "";
             isValid = false;
+            fbxWarningResult = null;
         }
         
         if(prefabObject != null) {
@@ -73,12 +75,6 @@ public class SetupProject : EditorWindow {
         
         PrefabAssetType prefabType = PrefabUtility.GetPrefabAssetType(prefabObject);
         
-        if(prefabType != PrefabAssetType.Variant) {
-            error = "The selected object is not a Prefab Variant\n" +
-                   "Current type: " + prefabType.ToString();
-            return false;
-        }
-        
         GameObject parentPrefab = PrefabUtility.GetCorrespondingObjectFromOriginalSource(prefabObject);
         
         if(parentPrefab == null) {
@@ -89,9 +85,8 @@ public class SetupProject : EditorWindow {
         string assetPath = AssetDatabase.GetAssetPath(parentPrefab);
         bool isFbx = assetPath.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase);
         
-        if(!isFbx) {
-            error = "The parent prefab is not an FBX file\n" +
-                   "File path: " + assetPath;
+        if(!isFbx && !fbxWarningResult.HasValue) {
+            Repaint();
             return false;
         }
         
@@ -191,6 +186,27 @@ public class SetupProject : EditorWindow {
             EditorUtility.DisplayDialog("Error", 
                 "Failed to create prefab variant in: " + newPrefabPath,
                 "OK");
+        }
+    }
+
+    void Update() {
+        if(prefabObject != null) {
+            GameObject parentPrefab = PrefabUtility.GetCorrespondingObjectFromOriginalSource(prefabObject);
+            if(parentPrefab != null) {
+                string assetPath = AssetDatabase.GetAssetPath(parentPrefab);
+                bool isFbx = assetPath.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase);
+                
+                if(!isFbx && !fbxWarningResult.HasValue) {
+                    EditorUtility.DisplayDialog(
+                        "Warning",
+                        "The parent prefab is not an FBX file.\n" +
+                        "File path: " + assetPath,
+                        "OK"
+                    );
+                    fbxWarningResult = true;
+                    Repaint();
+                }
+            }
         }
     }
 }
