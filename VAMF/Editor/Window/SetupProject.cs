@@ -8,16 +8,26 @@ public class SetupProject : EditorWindow {
     private string errorMessage = "";
     private bool isValid = false;
     
-    [MenuItem("VAMF/Setup Project", priority = 0)]
-    public static void ShowWindow() {
-        SetupProject window = GetWindow<SetupProject>("Setup Project");
-        window.minSize = new Vector2(350, 150);
-        window.maxSize = new Vector2(350, 150);
-        window.Show();
+    [MenuItem("Assets/Start Modification", priority = 0)]
+    private static void ShowWindowFromContext() {
+        GameObject selectedObject = Selection.activeGameObject;
+        if (selectedObject != null) {
+            SetupProject window = GetWindow<SetupProject>("Setup Project");
+            window.minSize = new Vector2(350, 150);
+            window.maxSize = new Vector2(350, 150);
+            window.prefabObject = selectedObject;
+            window.Show();
+        }
+    }
+
+    [MenuItem("Assets/Start Modification", true)]
+    private static bool ValidateShowWindowFromContext() {
+        GameObject selectedObject = Selection.activeGameObject;
+        return selectedObject != null;
     }
 
     void OnGUI() {
-        GUILayout.Label("Setup Project", EditorStyles.boldLabel);
+        GUILayout.Label("Start Modification", EditorStyles.boldLabel);
         GUILayout.Space(10);
         
         GameObject previousObject = prefabObject;
