@@ -138,7 +138,7 @@ namespace Window {
 
             using(new GUILayout.HorizontalScope()) {
                 GUILayout.Space(20);
-                using(new GUILayout.VerticalScope(GUILayout.Width(position.width * 0.2f))) {
+                using(new GUILayout.VerticalScope(GUILayout.Width(position.width * 0.25f))) {
                     GUILayout.Space(8);
                     using(new GUILayout.HorizontalScope()) {
                         GUILayout.Label("Name:", GUILayout.Width(50));
@@ -155,7 +155,7 @@ namespace Window {
                     GUILayout.Space(7);
                 }
                 GUILayout.Space(10);
-                using(new GUILayout.VerticalScope(GUILayout.Width(position.width * 0.35f))) {
+                using(new GUILayout.VerticalScope(GUILayout.Width(position.width * 0.4f))) {
                     GUILayout.Space(8);
                     using(new GUILayout.HorizontalScope()) {
                         GUILayout.Label("Description:", GUILayout.Width(70));
@@ -182,7 +182,7 @@ namespace Window {
                     }
                     GUILayout.Space(7);
                 }
-                GUILayout.Space(45);
+                GUILayout.Space(20);
                 GUILayout.FlexibleSpace();
                 GUILayout.Space(10);
                 using(new GUILayout.VerticalScope()) {
