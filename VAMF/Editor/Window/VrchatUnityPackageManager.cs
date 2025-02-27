@@ -190,6 +190,7 @@ namespace Window {
                     if(GUILayout.Button("Reset", Style.searchButton)) {
                         searchName = "";
                         searchDescription = "";
+                        selectedSupportAvatar = "None";
                         filteredAssetList = assetDataList;
                         GUI.FocusControl(null);
                     }
