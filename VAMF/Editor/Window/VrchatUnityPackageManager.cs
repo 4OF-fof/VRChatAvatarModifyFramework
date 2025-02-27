@@ -11,7 +11,6 @@ namespace Window {
 
         private string searchName = "";
         private string searchDescription = "";
-        private bool isLiveSearch = false;
         private string selectedSupportAvatar = "";
 
         private List<AssetData> assetDataList;
@@ -63,7 +62,6 @@ namespace Window {
                             searchName = "";
                             searchDescription = "";
                             selectedSupportAvatar = "None";
-                            Repaint();
                         };
                     }
                 }
@@ -148,9 +146,6 @@ namespace Window {
                         string newSearchName = GUILayout.TextField(searchName, Style.searchTextField);
                         if(newSearchName != searchName) {
                             searchName = newSearchName;
-                            if(isLiveSearch) {
-                                FilterAssets();
-                            }
                         }
                         if(Event.current.isKey && Event.current.keyCode == KeyCode.Return && GUI.GetNameOfFocusedControl() == "NameSearchField") {
                             Event.current.Use();
@@ -168,9 +163,6 @@ namespace Window {
                         string newSearchDescription = GUILayout.TextField(searchDescription, Style.searchTextField);
                         if(newSearchDescription != searchDescription) {
                             searchDescription = newSearchDescription;
-                            if(isLiveSearch) {
-                                FilterAssets();
-                            }
                         }
                         if(Event.current.isKey && Event.current.keyCode == KeyCode.Return && GUI.GetNameOfFocusedControl() == "DescSearchField") {
                             Event.current.Use();
@@ -187,18 +179,10 @@ namespace Window {
                     
                     if(newSelectedIndex != selectedIndex) {
                         selectedSupportAvatar = avatarNames[newSelectedIndex];
-                        if(isLiveSearch) {
-                            FilterAssets();
-                        }
                     }
                     GUILayout.Space(7);
                 }
                 GUILayout.Space(45);
-                using(new GUILayout.VerticalScope()) {
-                    GUILayout.Space(10);
-                    isLiveSearch = GUILayout.Toggle(isLiveSearch, "Live Search", GUILayout.Width(100));
-                    GUILayout.Space(5);
-                }
                 GUILayout.FlexibleSpace();
                 GUILayout.Space(10);
                 using(new GUILayout.VerticalScope()) {
@@ -208,17 +192,14 @@ namespace Window {
                         searchDescription = "";
                         filteredAssetList = assetDataList;
                         GUI.FocusControl(null);
-                        Repaint();
                     }
                     GUILayout.Space(7);
                 }
                 GUILayout.Space(10);
                 using(new GUILayout.VerticalScope()) {
                     GUILayout.Space(8);
-                    using (new EditorGUI.DisabledGroupScope(isLiveSearch)) {
-                        if(GUILayout.Button("Search", Style.searchButton) && !isLiveSearch) {
-                            FilterAssets();
-                        }
+                    if(GUILayout.Button("Search", Style.searchButton)) {
+                        FilterAssets();
                     }
                     GUILayout.Space(7);
                 }
@@ -254,7 +235,6 @@ namespace Window {
                         asset.supportAvatar.Count > 0 &&
                         asset.supportAvatar.Contains(avatarNameToUid[selectedSupportAvatar]))))))
                 .ToList();
-            Repaint();
         }
 
         public void RefreshAssetList() {
