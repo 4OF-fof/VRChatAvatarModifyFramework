@@ -1,32 +1,32 @@
-using UnityEngine;
-using UnityEditor;
-using System.IO;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.Serialization;
 
-namespace Utility {
+namespace VAMF.Editor.Utility {
     [Serializable]
     public class FileHashInfo {
-        public string FilePath;
-        public string FileHash;
+        [FormerlySerializedAs("FilePath")] public string filePath;
+        [FormerlySerializedAs("FileHash")] public string fileHash;
     }
 
     [Serializable]
     public class PackageImportHistory {
-        public List<FileHashInfo> Files = new List<FileHashInfo>();
+        [FormerlySerializedAs("Files")] public List<FileHashInfo> files = new List<FileHashInfo>();
     }
 
     public class MonitorImport {
-        private static List<string> importedAssetPaths = new List<string>();
-        private static HashSet<string> preExistingAssetPaths = new HashSet<string>();
-        private static string currentImportingPackage = null;
-        private static bool isImportingPackage = false;
-        private static string outputJsonPath = "Assets/VAMF/Data/import_history.json";
+        private static List<string> _importedAssetPaths = new List<string>();
+        private static HashSet<string> _preExistingAssetPaths = new HashSet<string>();
+        private static string _currentImportingPackage = null;
+        private static bool _isImportingPackage = false;
+        private static string _outputJsonPath = "Assets/VAMF/Data/import_history.json";
         
-        public const string OUTPUT_PATH_PREF_KEY = "VAMF_MonitorImport_OutputPath";
+        public const string OutputPathPrefKey = "VAMF_MonitorImport_OutputPath";
         
         [InitializeOnLoadMethod]
         private static void Initialize() {
@@ -38,44 +38,44 @@ namespace Utility {
         }
         
         private static void LoadSettings() {
-            if(EditorPrefs.HasKey(OUTPUT_PATH_PREF_KEY)) {
-                outputJsonPath = EditorPrefs.GetString(OUTPUT_PATH_PREF_KEY);
+            if(EditorPrefs.HasKey(OutputPathPrefKey)) {
+                _outputJsonPath = EditorPrefs.GetString(OutputPathPrefKey);
             }else {
-                EditorPrefs.SetString(OUTPUT_PATH_PREF_KEY, outputJsonPath);
+                EditorPrefs.SetString(OutputPathPrefKey, _outputJsonPath);
             }
         }
 
         private static void OnImportPackageCompleted(string packageName) {
             ProcessImportedPackage(packageName);
-            currentImportingPackage = null;
-            isImportingPackage = false;
-            importedAssetPaths.Clear();
-            preExistingAssetPaths.Clear();
+            _currentImportingPackage = null;
+            _isImportingPackage = false;
+            _importedAssetPaths.Clear();
+            _preExistingAssetPaths.Clear();
         }
 
         private static void OnImportPackageCancelled(string packageName) {
-            currentImportingPackage = null;
-            isImportingPackage = false;
-            importedAssetPaths.Clear();
-            preExistingAssetPaths.Clear();
+            _currentImportingPackage = null;
+            _isImportingPackage = false;
+            _importedAssetPaths.Clear();
+            _preExistingAssetPaths.Clear();
         }
 
         private static void OnImportPackageFailed(string packageName, string errorMessage) {
-            currentImportingPackage = null;
-            isImportingPackage = false;
-            importedAssetPaths.Clear();
-            preExistingAssetPaths.Clear();
+            _currentImportingPackage = null;
+            _isImportingPackage = false;
+            _importedAssetPaths.Clear();
+            _preExistingAssetPaths.Clear();
         }
 
         private static void OnImportPackageStarted(string packageName) {
-            currentImportingPackage = packageName;
-            isImportingPackage = true;
-            importedAssetPaths.Clear();
-            preExistingAssetPaths.Clear();
+            _currentImportingPackage = packageName;
+            _isImportingPackage = true;
+            _importedAssetPaths.Clear();
+            _preExistingAssetPaths.Clear();
             
             string[] allAssets = AssetDatabase.GetAllAssetPaths();
             foreach(string assetPath in allAssets) {
-                preExistingAssetPaths.Add(assetPath);
+                _preExistingAssetPaths.Add(assetPath);
             }
         }
 
@@ -86,7 +86,7 @@ namespace Utility {
         
         private static void SaveMaterialFiles() {
             try {
-                foreach (string assetPath in importedAssetPaths) {
+                foreach (string assetPath in _importedAssetPaths) {
                     if(assetPath.EndsWith(".mat", StringComparison.OrdinalIgnoreCase) && File.Exists(assetPath)) {
                         try {
                             Material material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
@@ -107,63 +107,63 @@ namespace Utility {
         }
         
         public static bool IsImportingPackage() {
-            return isImportingPackage;
+            return _isImportingPackage;
         }
         
         public static void AddImportedAsset(string assetPath) {
-            if(isImportingPackage && !preExistingAssetPaths.Contains(assetPath) && !importedAssetPaths.Contains(assetPath)) {
-                importedAssetPaths.Add(assetPath);
+            if(_isImportingPackage && !_preExistingAssetPaths.Contains(assetPath) && !_importedAssetPaths.Contains(assetPath)) {
+                _importedAssetPaths.Add(assetPath);
             }
         }
 
         private static void SaveFileHashesToJson(string packageName) {
             List<FileHashInfo> fileHashInfos = new List<FileHashInfo>();
             
-            foreach(string assetPath in importedAssetPaths) {
+            foreach(string assetPath in _importedAssetPaths) {
                 if(File.Exists(assetPath)) {
                     string hash = CalculateFileHash(assetPath);
                     fileHashInfos.Add(new FileHashInfo {
-                        FilePath = assetPath,
-                        FileHash = hash
+                        filePath = assetPath,
+                        fileHash = hash
                     });
                 }
             }
             
             PackageImportHistory history = LoadOrCreateImportHistory();
-            history.Files.AddRange(fileHashInfos);
+            history.files.AddRange(fileHashInfos);
             
             try {
                 string json = JsonUtility.ToJson(history, true);
                 
-                string directory = Path.GetDirectoryName(outputJsonPath);
+                string directory = Path.GetDirectoryName(_outputJsonPath);
                 if(!Directory.Exists(directory)) {
                     Directory.CreateDirectory(directory);
                 }
                 
-                File.WriteAllText(outputJsonPath, json);
-                AssetDatabase.ImportAsset(outputJsonPath);
+                File.WriteAllText(_outputJsonPath, json);
+                AssetDatabase.ImportAsset(_outputJsonPath);
             } catch(Exception ex) {
                 Debug.LogError($"Error saving import history to JSON: {ex.Message}");
             }
         }
         
         private static PackageImportHistory LoadOrCreateImportHistory() {
-            if(File.Exists(outputJsonPath)) {
+            if(File.Exists(_outputJsonPath)) {
                 try {
-                    string json = File.ReadAllText(outputJsonPath);
+                    string json = File.ReadAllText(_outputJsonPath);
                     PackageImportHistory history = JsonUtility.FromJson<PackageImportHistory>(json);
                     
-                    if(history != null && history.Files != null) {
+                    if(history != null && history.files != null) {
                         return history;
                     }
                 }catch(Exception ex) {
-                    Debug.LogError($"Error loading import history file: {outputJsonPath}, Error: {ex.Message}");
+                    Debug.LogError($"Error loading import history file: {_outputJsonPath}, Error: {ex.Message}");
                     Debug.Log("Creating new import history file.");
                 }
             }
             
             return new PackageImportHistory {
-                Files = new List<FileHashInfo>()
+                files = new List<FileHashInfo>()
             };
         }
         
@@ -194,8 +194,8 @@ namespace Utility {
                 PackageImportHistory history = LoadOrCreateImportHistory();
                 bool wasRemoved = false;
                 
-                history.Files.RemoveAll(file => {
-                    bool shouldRemove = file.FilePath == assetPath;
+                history.files.RemoveAll(file => {
+                    bool shouldRemove = file.filePath == assetPath;
                     if (shouldRemove) {
                         wasRemoved = true;
                         Debug.Log($"Removed deleted file from import history: {assetPath}");
@@ -206,13 +206,13 @@ namespace Utility {
                 if (wasRemoved) {
                     string json = JsonUtility.ToJson(history, true);
                     
-                    string directory = Path.GetDirectoryName(outputJsonPath);
+                    string directory = Path.GetDirectoryName(_outputJsonPath);
                     if(!Directory.Exists(directory)) {
                         Directory.CreateDirectory(directory);
                     }
                     
-                    File.WriteAllText(outputJsonPath, json);
-                    AssetDatabase.ImportAsset(outputJsonPath);
+                    File.WriteAllText(_outputJsonPath, json);
+                    AssetDatabase.ImportAsset(_outputJsonPath);
                 }
             } catch(Exception ex) {
                 Debug.LogError($"Error removing deleted asset from JSON: {assetPath}, Error: {ex.Message}");
@@ -226,9 +226,9 @@ namespace Utility {
                 PackageImportHistory history = LoadOrCreateImportHistory();
                 bool wasUpdated = false;
                 
-                foreach (var fileInfo in history.Files) {
-                    if (fileInfo.FilePath == oldPath) {
-                        fileInfo.FilePath = newPath;
+                foreach (var fileInfo in history.files) {
+                    if (fileInfo.filePath == oldPath) {
+                        fileInfo.filePath = newPath;
                         wasUpdated = true;
                         Debug.Log($"Updated asset path: {oldPath} -> {newPath}");
                     }
@@ -237,13 +237,13 @@ namespace Utility {
                 if (wasUpdated) {
                     string json = JsonUtility.ToJson(history, true);
                     
-                    string directory = Path.GetDirectoryName(outputJsonPath);
+                    string directory = Path.GetDirectoryName(_outputJsonPath);
                     if(!Directory.Exists(directory)) {
                         Directory.CreateDirectory(directory);
                     }
                     
-                    File.WriteAllText(outputJsonPath, json);
-                    AssetDatabase.ImportAsset(outputJsonPath);
+                    File.WriteAllText(_outputJsonPath, json);
+                    AssetDatabase.ImportAsset(_outputJsonPath);
                 }
             } catch(Exception ex) {
                 Debug.LogError($"Error updating asset path in JSON: {oldPath} -> {newPath}, Error: {ex.Message}");

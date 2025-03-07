@@ -1,31 +1,24 @@
-using UnityEngine;
-using UnityEditor;
-using System.IO;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
+using UnityEditor;
+using VAMF.Editor.Schemas;
 
-namespace Utility {
-    public class UnityPackageManager {
+namespace VAMF.Editor.Utility {
+    public static class UnityPackageManager {
         public static void ImportAsset(AssetData assetData) {
-            string assetPath = Path.Combine(
-                System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
-                "VAMF",
-                assetData.filePath
-            ).Replace("\\", "/");
-
-            List<string> ImportPackageList = new List<string>();
+            List<string> importPackageList = new List<string>();
 
             List<string> dependenciesList = SearchDependencies(assetData.dependencies);
             dependenciesList.Add(assetData.uid);
             foreach (string dependency in dependenciesList) {
                 AssetData dependencyAssetData = AssetDataController.GetAssetData(dependency);
                 if(dependencyAssetData != null) {
-                    ImportPackageList.Add(dependencyAssetData.name);
+                    importPackageList.Add(dependencyAssetData.name);
                 }
             }
 
-            if(ImportPackageList.Count > 0) {
-                string message = "The following packages will be imported:\n" + string.Join("\n", ImportPackageList);
+            if(importPackageList.Count > 0) {
+                string message = "The following packages will be imported:\n" + string.Join("\n", importPackageList);
                 bool userChoice = EditorUtility.DisplayDialog(
                     "Package Import Confirmation",
                     message,
@@ -37,19 +30,19 @@ namespace Utility {
                     foreach (string dependency in dependenciesList) {
                         AssetData dependencyAssetData = AssetDataController.GetAssetData(dependency);
                         if(dependencyAssetData != null) {
-                            string UnityPackagePath = Path.Combine(
+                            string unityPackagePath = Path.Combine(
                                 System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
                                 "VAMF",
                                 dependencyAssetData.filePath
                             ).Replace("\\", "/");
-                            AssetDatabase.ImportPackage(UnityPackagePath, false);
+                            AssetDatabase.ImportPackage(unityPackagePath, false);
                         }
                     }
                 }
             }
         }
 
-        public static List<string> SearchDependencies(List<string> dependencies) {
+        private static List<string> SearchDependencies(List<string> dependencies) {
             if (dependencies == null || dependencies.Count == 0) {
                 return new List<string>();
             }
@@ -58,23 +51,21 @@ namespace Utility {
             List<string> result = new List<string>();
 
             foreach (string dependency in dependencies) {
-                DFS(dependency, visited, result);
+                Dfs(dependency, visited, result);
             }
 
             return result;
         }
 
-        private static void DFS(string currentUid, HashSet<string> visited, List<string> result) {
-            if (visited.Contains(currentUid)) {
+        private static void Dfs(string currentUid, HashSet<string> visited, List<string> result) {
+            if (!visited.Add(currentUid)) {
                 return;
             }
-
-            visited.Add(currentUid);
 
             AssetData assetData = AssetDataController.GetAssetData(currentUid);
             if (assetData?.dependencies != null) {
                 foreach (string dependencyUid in assetData.dependencies) {
-                    DFS(dependencyUid, visited, result);
+                    Dfs(dependencyUid, visited, result);
                 }
             }
 

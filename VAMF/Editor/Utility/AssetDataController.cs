@@ -1,17 +1,17 @@
-using UnityEngine;
-using System.IO;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System;
-using UnityEditor;
+using UnityEngine;
+using VAMF.Editor.Components.CustomPopup;
+using VAMF.Editor.Schemas;
 
-namespace Utility {
-    public class AssetDataController {
+namespace VAMF.Editor.Utility {
+    public static class AssetDataController {
         public static void AutoRegisterAssetData() {
-            string assetDataPath = GetAssetDataPath();
             string assetFolderPath = Path.Combine(
-                System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "VAMF/Assets"
             ).Replace("\\", "/");
 
@@ -22,7 +22,7 @@ namespace Utility {
             List<AssetData> assetList = GetAllAssetData();
 
             string modifyFolderPath = Path.Combine(
-                System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "VAMF",
                 "Modified"
             ).Replace("\\", "/");
@@ -110,7 +110,7 @@ namespace Utility {
                     return new List<AssetData>();
                 }
                 return assetDataList.assetList;
-            }catch(System.Exception e) {
+            }catch(Exception e) {
                 Debug.LogError($"Error reading asset data: {e.Message}");
                 return new List<AssetData>();
             }
@@ -140,7 +140,7 @@ namespace Utility {
 
         public static void UpdateUnityPackage(AssetData assetData) {
             string assetFolderPath = Path.Combine(
-                System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "VAMF"
             ).Replace("\\", "/");
             
@@ -157,7 +157,7 @@ namespace Utility {
 
         private static string GetAssetDataPath() {
             string dataRootPath = Path.Combine(
-                System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "VAMF"
             ).Replace("\\", "/");
 
@@ -189,7 +189,7 @@ namespace Utility {
 
         private static string UnzipFile(string zipFilePath, string uid = null, bool forceDialog = false) {
             string unzipFolderPath = Path.Combine(
-                System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "VAMF/Unzip"
             ).Replace("\\", "/");
 
@@ -198,28 +198,27 @@ namespace Utility {
             }
 
             try {
-                using (ZipArchive archive = ZipFile.OpenRead(zipFilePath)) {
-                    var unityPackages = archive.Entries.Where(entry => entry.Name.EndsWith(".unitypackage")).ToList();
-                    int targetIndex = 0;
+                using ZipArchive archive = ZipFile.OpenRead(zipFilePath);
+                var unityPackages = archive.Entries.Where(entry => entry.Name.EndsWith(".unitypackage")).ToList();
+                int targetIndex = 0;
 
-                    if(unityPackages.Count == 0) {
-                        Debug.LogWarning("Cannot find UnityPackage in zip file.");
-                        return null;
-                    }else if(unityPackages.Count > 1 || forceDialog) {
-                        targetIndex = UnityPackageSelector.ShowWindow(unityPackages);
-                    }
+                if(unityPackages.Count == 0) {
+                    Debug.LogWarning("Cannot find UnityPackage in zip file.");
+                    return null;
+                }else if(unityPackages.Count > 1 || forceDialog) {
+                    targetIndex = UnityPackageSelector.ShowWindow(unityPackages);
+                }
 
-                    string guidToUse = uid ?? Guid.NewGuid().ToString();
-                    string extractPath = Path.Combine(unzipFolderPath, unityPackages[targetIndex].Name)
+                string guidToUse = uid ?? Guid.NewGuid().ToString();
+                string extractPath = Path.Combine(unzipFolderPath, unityPackages[targetIndex].Name)
                     .Replace(".unitypackage", $"_{guidToUse}.unitypackage");
 
-                    if(File.Exists(extractPath)) {
-                        File.Delete(extractPath);
-                    }
-
-                    unityPackages[targetIndex].ExtractToFile(extractPath);
-                    return extractPath.Replace("\\", "/").Replace(unzipFolderPath, "Unzip");
+                if(File.Exists(extractPath)) {
+                    File.Delete(extractPath);
                 }
+
+                unityPackages[targetIndex].ExtractToFile(extractPath);
+                return extractPath.Replace("\\", "/").Replace(unzipFolderPath, "Unzip");
             }catch(Exception e) {
                 Debug.LogError($"Error occurred while unzipping file: {e.Message}");
                 return null;
