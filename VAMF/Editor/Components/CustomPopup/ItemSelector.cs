@@ -24,7 +24,7 @@ namespace VAMF.Editor.Components.CustomPopup {
             window._ignoreList = ignoreList ?? new List<string>();
             window._selfUid = selfUid;
         
-            Vector2 mousePosition = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
+            var mousePosition = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
             window.position = new Rect(mousePosition.x, mousePosition.y, 200, 250);
 
             window.ShowPopup();
@@ -51,12 +51,10 @@ namespace VAMF.Editor.Components.CustomPopup {
                     if (_filteredAssetList == null) return;
                     foreach (var assetData in _filteredAssetList) {
                         using (new GUILayout.HorizontalScope()) {
-                            bool isExistingDependency = _ignoreList.Contains(assetData.uid);
+                            var isExistingDependency = _ignoreList.Contains(assetData.uid);
                             using (new EditorGUI.DisabledScope(isExistingDependency)) {
                                 if (GUILayout.Button("+", Style.SelectButton)) {
-                                    if (_onItemSelected != null) {
-                                        _onItemSelected.Invoke(assetData.uid);
-                                    }
+                                    _onItemSelected?.Invoke(assetData.uid);
                                 }
                             }
 

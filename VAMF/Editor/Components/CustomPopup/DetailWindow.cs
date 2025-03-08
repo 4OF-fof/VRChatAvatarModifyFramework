@@ -242,7 +242,7 @@ namespace VAMF.Editor.Components.CustomPopup {
                             var path = EditorUtility.OpenFilePanel("Select Thumbnail", Constants.ThumbnailsDirPath, "png,jpg");
                             if(!string.IsNullOrEmpty(path)) {
                                 if(path.StartsWith(Constants.ThumbnailsDirPath)) {
-                                    path = path.Replace("\\", "/").Replace(Constants.ThumbnailsDirPath + "/", "Thumbnail");
+                                    path = path.Replace("\\", "/").Replace(Constants.ThumbnailsDirPath, "Thumbnail");
                                     _tmpAssetData.thumbnailFilePath = path;
                                 }else {
                                     EditorUtility.DisplayDialog("Error", $"Thumbnail must be placed in the VAMF/Thumbnail folder.\n\nSelected path: {path}", "OK");
