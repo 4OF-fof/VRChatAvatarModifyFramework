@@ -28,7 +28,7 @@ namespace VAMF.Editor.Components {
         public static void DrawThumbnail(string relativeThumbnailFilePath, int size) {
             InitializeSystemTextures();
 
-            var thumbnailFilePath = Constants.RootDirPath + "/" + relativeThumbnailFilePath;
+            var thumbnailFilePath = ContentsPath.RootDirPath + "/" + relativeThumbnailFilePath;
 
             if(string.IsNullOrEmpty(thumbnailFilePath)) {
                 GUILayout.Label(new GUIContent(_dummyThumbnail), GUILayout.Width(size), GUILayout.Height(size));

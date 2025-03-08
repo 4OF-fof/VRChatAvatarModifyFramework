@@ -9,12 +9,13 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using VAMF.Editor.Components.CustomPopup;
 using VAMF.Editor.Schemas;
+using VAMF.Editor.Utility;
 using VRC.Core;
 
 namespace VAMF.Editor.Window {
     public class SaveAsModifiedAvatar : EditorWindow {
-        private Dictionary<GameObject, int> _originalLayers = new Dictionary<GameObject, int>();
-        private AssetData _newAssetData = new AssetData();
+        private readonly Dictionary<GameObject, int> _originalLayers = new Dictionary<GameObject, int>();
+        private readonly AssetData _newAssetData = new AssetData();
         private Vector2 _scrollPosition = Vector2.zero;
         private const int PreviewLayer = 30;
         private Color _backgroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
@@ -32,7 +33,7 @@ namespace VAMF.Editor.Window {
             if (Selection.activeGameObject != null) {
                 window._currentTarget = Selection.activeGameObject;
                 window.StoreAndChangeLayer(window._currentTarget);
-                window.FocusOnSelectedObject();
+                FocusOnSelectedObject();
                 window.UpdateSceneViewSettings();
             }
         
@@ -80,18 +81,16 @@ namespace VAMF.Editor.Window {
                 sceneView.camera.cullingMask = _previousCullingMask;
             }
 
-            if (_previewRT != null) {
-                RenderTexture.ReleaseTemporary(_previewRT);
-                _previewRT = null;
-            }
+            if (_previewRT == null) return;
+            RenderTexture.ReleaseTemporary(_previewRT);
+            _previewRT = null;
         }
 
         private void UpdateSceneViewSettings() {
             var sceneView = SceneView.lastActiveSceneView;
-            if (sceneView != null && _currentTarget != null) {
-                sceneView.camera.cullingMask = 1 << PreviewLayer;
-                sceneView.Repaint();
-            }
+            if (sceneView == null || _currentTarget == null) return;
+            sceneView.camera.cullingMask = 1 << PreviewLayer;
+            sceneView.Repaint();
         }
 
         private void OnEditorUpdate() {
@@ -102,27 +101,26 @@ namespace VAMF.Editor.Window {
             UpdateSceneViewSettings();
         }
 
-        private void FocusOnSelectedObject() {
+        private static void FocusOnSelectedObject() {
             if (Selection.activeGameObject == null) return;
 
             var renderers = Selection.activeGameObject.GetComponentsInChildren<Renderer>();
             if (renderers.Length == 0) return;
 
-            Bounds bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++) {
+            var bounds = renderers[0].bounds;
+            for (var i = 1; i < renderers.Length; i++) {
                 bounds.Encapsulate(renderers[i].bounds);
             }
 
-            float scale = 0.6f;
-            Vector3 center = bounds.center;
+            const float scale = 0.6f;
+            var center = bounds.center;
             bounds.size *= scale;
             bounds.center = center;
 
-            SceneView sceneView = SceneView.lastActiveSceneView;
-            if (sceneView != null) {
-                sceneView.Frame(bounds, false);
-                sceneView.rotation = Quaternion.Euler(0, -180, 0);
-            }
+            var sceneView = SceneView.lastActiveSceneView;
+            if (sceneView == null) return;
+            sceneView.Frame(bounds, false);
+            sceneView.rotation = Quaternion.Euler(0, -180, 0);
         }
 
         private void StoreAndChangeLayer(GameObject obj) {
@@ -146,42 +144,38 @@ namespace VAMF.Editor.Window {
         }
 
         private void RestoreOriginalLayers() {
-            foreach(var kvp in _originalLayers) {
-                if(kvp.Key != null) {
-                    kvp.Key.layer = kvp.Value;
-                }
+            foreach (var kvp in _originalLayers.Where(kvp => kvp.Key != null)) {
+                kvp.Key.layer = kvp.Value;
             }
+
             _originalLayers.Clear();
         }
 
         private void UpdatePreviewTexture() {
-            if (_previewRT == null) {
-                _previewRT = RenderTexture.GetTemporary(512, 512, 24);
-            }
+            _previewRT ??= RenderTexture.GetTemporary(512, 512, 24);
 
-            SceneView sceneView = SceneView.lastActiveSceneView;
-            if (sceneView != null && sceneView.camera != null) {
-                RenderTexture previousRT = sceneView.camera.targetTexture;
-                Color previousBackgroundColor = sceneView.camera.backgroundColor;
-                CameraClearFlags previousClearFlags = sceneView.camera.clearFlags;
+            var sceneView = SceneView.lastActiveSceneView;
+            if (sceneView?.camera is null) return;
+            var previousRT = sceneView.camera.targetTexture;
+            var previousBackgroundColor = sceneView.camera.backgroundColor;
+            var previousClearFlags = sceneView.camera.clearFlags;
             
-                sceneView.camera.targetTexture = _previewRT;
-                sceneView.camera.backgroundColor = _backgroundColor;
-                sceneView.camera.clearFlags = CameraClearFlags.SolidColor;
-                sceneView.camera.Render();
+            sceneView.camera.targetTexture = _previewRT;
+            sceneView.camera.backgroundColor = _backgroundColor;
+            sceneView.camera.clearFlags = CameraClearFlags.SolidColor;
+            sceneView.camera.Render();
             
-                sceneView.camera.targetTexture = previousRT;
-                sceneView.camera.backgroundColor = previousBackgroundColor;
-                sceneView.camera.clearFlags = previousClearFlags;
-            }
+            sceneView.camera.targetTexture = previousRT;
+            sceneView.camera.backgroundColor = previousBackgroundColor;
+            sceneView.camera.clearFlags = previousClearFlags;
         }
 
         private void OnGUI() {
             using(new GUILayout.HorizontalScope()) {
-                Rect previewRect = GUILayoutUtility.GetRect(512, 512);
+                var previewRect = GUILayoutUtility.GetRect(512, 512);
                 if (Event.current.type == EventType.Repaint) {
                     UpdatePreviewTexture();
-                    if (_previewRT != null) {
+                    if (_previewRT is not null) {
                         GUI.DrawTexture(previewRect, _previewRT);
                     }
                 }
@@ -194,7 +188,7 @@ namespace VAMF.Editor.Window {
                     _newAssetData.name = GUILayout.TextField(_newAssetData.name, GUILayout.Width(210));
 
                     GUILayout.Label("Description", Style.DetailTitle);
-                    float descriptionHeight = EditorStyles.textArea.CalcHeight(new GUIContent(_newAssetData.description), 210);
+                    var descriptionHeight = EditorStyles.textArea.CalcHeight(new GUIContent(_newAssetData.description), 210);
                     _newAssetData.description = EditorGUILayout.TextArea(
                         _newAssetData.description,
                         new GUIStyle(EditorStyles.textArea) { wordWrap = true },
@@ -207,13 +201,12 @@ namespace VAMF.Editor.Window {
                         using(new GUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(210))) {
                             string dependencyToRemove = null;
                             foreach(var dependencyUid in _newAssetData.dependencies) {
-                                var dependencyAsset = Utility.AssetDataController.GetAssetData(dependencyUid);
-                                if(dependencyAsset != null) {
-                                    using (new GUILayout.HorizontalScope(GUILayout.Width(180))) {
-                                        GUILayout.Label(dependencyAsset.name, Style.DetailValue, GUILayout.Width(180));
-                                        if(GUILayout.Button("×", GUILayout.Width(20))) {
-                                            dependencyToRemove = dependencyUid;
-                                        }
+                                var dependencyAsset = AssetDataController.GetAssetData(dependencyUid);
+                                if (dependencyAsset == null) continue;
+                                using (new GUILayout.HorizontalScope(GUILayout.Width(180))) {
+                                    GUILayout.Label(dependencyAsset.name, Style.DetailValue, GUILayout.Width(180));
+                                    if(GUILayout.Button("×", GUILayout.Width(20))) {
+                                        dependencyToRemove = dependencyUid;
                                     }
                                 }
                             }
@@ -223,57 +216,56 @@ namespace VAMF.Editor.Window {
                         }
                     }
                     if(GUILayout.Button("Add Dependency", GUILayout.Width(210))) {
-                        ItemSelector.ShowWindow(uid => {
-                            if(uid != null) {
-                                if(_newAssetData.dependencies == null) {
-                                    _newAssetData.dependencies = new List<string>();
-                                }
-                                _newAssetData.dependencies.Add(uid);
-                                Repaint();
+                        ItemSelector.ShowWindow(uid =>
+                        {
+                            if (uid == null) return;
+                            if(_newAssetData.dependencies == null) {
+                                _newAssetData.dependencies = new List<string>();
                             }
-                        }, Utility.AssetDataController.GetAllAssetData(), _newAssetData.dependencies);
+                            _newAssetData.dependencies.Add(uid);
+                            Repaint();
+                        }, AssetDataController.GetAllAssetData(), _newAssetData.dependencies);
                     }
 
                     GUILayout.Label("Old Versions", Style.DetailTitle);
-                    if (_newAssetData.oldVersions != null && _newAssetData.oldVersions.Count > 0) {
+                    if (_newAssetData.oldVersions is { Count: > 0 }) {
                         using(new GUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(210))) {
                             string versionToRemove = null;
                             foreach(var oldVersion in _newAssetData.oldVersions) {
-                                var oldVersionAsset = Utility.AssetDataController.GetAssetData(oldVersion);
-                                if(oldVersionAsset != null) {
-                                    using (new GUILayout.HorizontalScope(GUILayout.Width(180))) {
-                                        GUILayout.Label(oldVersionAsset.name, Style.DetailValue, GUILayout.Width(180));
-                                        if(GUILayout.Button("×", GUILayout.Width(20))) {
-                                            versionToRemove = oldVersion;
-                                        }
+                                var oldVersionAsset = AssetDataController.GetAssetData(oldVersion);
+                                if (oldVersionAsset == null) continue;
+                                using (new GUILayout.HorizontalScope(GUILayout.Width(180))) {
+                                    GUILayout.Label(oldVersionAsset.name, Style.DetailValue, GUILayout.Width(180));
+                                    if(GUILayout.Button("×", GUILayout.Width(20))) {
+                                        versionToRemove = oldVersion;
                                     }
                                 }
                             }
                             if(versionToRemove != null) {
                                 _newAssetData.oldVersions.Remove(versionToRemove);
-                                var removedVersionAsset = Utility.AssetDataController.GetAssetData(versionToRemove);
+                                var removedVersionAsset = AssetDataController.GetAssetData(versionToRemove);
                                 if (removedVersionAsset != null) {
                                     removedVersionAsset.isLatest = true;
-                                    Utility.AssetDataController.UpdateAssetData(removedVersionAsset.uid, removedVersionAsset);
+                                    AssetDataController.UpdateAssetData(removedVersionAsset.uid, removedVersionAsset);
                                 }
                             }
                         }
                     }
                     if(GUILayout.Button("Add Old Version", GUILayout.Width(210))) {
-                        ItemSelector.ShowWindow(uid => {
-                            if(uid != null) {
-                                if(_newAssetData.oldVersions == null) {
-                                    _newAssetData.oldVersions = new List<string>();
-                                }
-                                _newAssetData.oldVersions.Add(uid);
-                                var oldVersionAsset = Utility.AssetDataController.GetAssetData(uid);
-                                if (oldVersionAsset != null) {
-                                    oldVersionAsset.isLatest = false;
-                                    Utility.AssetDataController.UpdateAssetData(oldVersionAsset.uid, oldVersionAsset);
-                                }
-                                Repaint();
+                        ItemSelector.ShowWindow(uid =>
+                        {
+                            if (uid == null) return;
+                            if(_newAssetData.oldVersions == null) {
+                                _newAssetData.oldVersions = new List<string>();
                             }
-                        }, Utility.AssetDataController.GetAllAssetData(), _newAssetData.oldVersions);
+                            _newAssetData.oldVersions.Add(uid);
+                            var oldVersionAsset = AssetDataController.GetAssetData(uid);
+                            if (oldVersionAsset != null) {
+                                oldVersionAsset.isLatest = false;
+                                AssetDataController.UpdateAssetData(oldVersionAsset.uid, oldVersionAsset);
+                            }
+                            Repaint();
+                        }, AssetDataController.GetAllAssetData(), _newAssetData.oldVersions);
                     }
 
                     GUILayout.Label("Background Color", Style.DetailTitle);
@@ -287,15 +279,15 @@ namespace VAMF.Editor.Window {
                             EditorUtility.DisplayDialog("Error", "Name is required", "OK");
                             return;
                         }
-                        string uid = Guid.NewGuid().ToString();
+                        var uid = Guid.NewGuid().ToString();
                         _newAssetData.thumbnailFilePath = SaveThumbnail(uid);
-                        string packagePath = ExportUnityPackage(_currentTarget, uid, _newAssetData.name);
+                        var packagePath = ExportUnityPackage(_currentTarget, uid, _newAssetData.name);
                         _newAssetData.filePath = packagePath;
                         _newAssetData.sourceFilePath = packagePath;
                         _newAssetData.uid = uid;
                         _newAssetData.isLatest = true;
                         _newAssetData.assetType = AssetType.Modified;
-                        Utility.AssetDataController.AddAssetData(_newAssetData);
+                        AssetDataController.AddAssetData(_newAssetData);
                         Close();
                     }
                     GUILayout.Space(10);
@@ -303,37 +295,35 @@ namespace VAMF.Editor.Window {
             }
         }
         private string SaveThumbnail(string uid) {
-            string thumbnailDir = Path.Combine(
+            var thumbnailDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "VAMF", "Thumbnail", "Modified"
             ).Replace("\\", "/");
             Directory.CreateDirectory(thumbnailDir);
-            string thumbnailPath = Path.Combine(thumbnailDir, $"{uid}.png");
+            var thumbnailPath = Path.Combine(thumbnailDir, $"{uid}.png");
 
-            if(_previewRT != null) {
-                UpdatePreviewTexture();
+            if (_previewRT is null) return null;
+            UpdatePreviewTexture();
             
-                RenderTexture.active = _previewRT;
-                Texture2D screenshot = new Texture2D(512, 512, TextureFormat.RGB24, false);
-                screenshot.ReadPixels(new Rect(0, 0, 512, 512), 0, 0);
-                screenshot.Apply();
+            RenderTexture.active = _previewRT;
+            var screenshot = new Texture2D(512, 512, TextureFormat.RGB24, false);
+            screenshot.ReadPixels(new Rect(0, 0, 512, 512), 0, 0);
+            screenshot.Apply();
             
-                byte[] bytes = screenshot.EncodeToPNG();
-                File.WriteAllBytes(thumbnailPath, bytes);
+            var bytes = screenshot.EncodeToPNG();
+            File.WriteAllBytes(thumbnailPath, bytes);
             
-                DestroyImmediate(screenshot);
-                RenderTexture.active = null;
-                return thumbnailPath.Replace("\\", "/").Replace(thumbnailDir, "Thumbnail/Modified");
-            }
-            return null;
+            DestroyImmediate(screenshot);
+            RenderTexture.active = null;
+            return thumbnailPath.Replace("\\", "/").Replace(thumbnailDir, "Thumbnail/Modified");
         }
 
         private string ExportUnityPackage(GameObject currentTarget, string uid, string packageName) {
-            List<string> dependencies = GetDependencies(currentTarget);
+            var dependencies = GetDependencies(currentTarget);
             HashCheck(dependencies, currentTarget);
 
-            string oldPath = "Assets/_Modify";
-            string newPath = $"Assets/{packageName}";
+            const string oldPath = "Assets/_Modify";
+            var newPath = $"Assets/{packageName}";
             if (AssetDatabase.IsValidFolder(oldPath)) {
                 AssetDatabase.MoveAsset(oldPath, newPath);
                 AssetDatabase.Refresh();
@@ -341,19 +331,8 @@ namespace VAMF.Editor.Window {
 
             dependencies = GetDependencies(currentTarget);
 
-            List<string> unityPackageDependencies = dependencies.Where(dependency => dependency.StartsWith($"Assets/{packageName}")).ToList();
-            string packageDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "VAMF",
-                "Modified"
-            ).Replace("\\", "/");
-            if(!Directory.Exists(packageDir)) {
-                Directory.CreateDirectory(packageDir);
-            }
-            string packagePath = Path.Combine(
-                packageDir,
-                $"{uid}.unitypackage"
-            ).Replace("\\", "/");
+            var unityPackageDependencies = dependencies.Where(dependency => dependency.StartsWith($"Assets/{packageName}")).ToList();
+            var packagePath = ContentsPath.ModifiedDirPath + $"/{uid}.unitypackage";
             AssetDatabase.ExportPackage(unityPackageDependencies.ToArray(), packagePath);
 
             if(AssetDatabase.IsValidFolder(newPath)) {
@@ -363,37 +342,28 @@ namespace VAMF.Editor.Window {
 
             RestoreOriginalReferences(currentTarget);
 
-            return packagePath.Replace("\\", "/").Replace(packageDir, "Modified");
+            return packagePath.Replace("\\", "/").Replace(ContentsPath.ModifiedDirPath, "Modified");
         }
 
-        private List<string> GetDependencies(GameObject currentTarget) {
-            string currentTargetPrefab = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(currentTarget);
+        private static List<string> GetDependencies(GameObject currentTarget) {
+            var currentTargetPrefab = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(currentTarget);
             return AssetDatabase.GetDependencies(currentTargetPrefab).ToList();
         }
 
         private void HashCheck(List<string> dependencies, GameObject currentTarget) {
             SaveMaterialFiles();
 
-            foreach(var dependency in dependencies) {
-                string hash = CalculateFileHash(dependency);
-                string importHistoryPath = Path.Combine(
-                    Application.dataPath,
-                    "VAMF", "Data", "import_history.json"
-                ).Replace("\\", "/");
-                string json = File.ReadAllText(importHistoryPath);
-                var importHistory = JsonUtility.FromJson<Utility.PackageImportHistory>(json);
-                var importHistoryFile = importHistory.files.Find(file => file.filePath == dependency);
-                if(importHistoryFile != null) {
-                    if(importHistoryFile.fileHash != hash) {
-                        MoveAsset(dependency, currentTarget);
-                    }
-                }
+            foreach (var dependency in from dependency in dependencies let hash = CalculateFileHash(dependency) let importHistoryPath = Path.Combine(
+                         Application.dataPath,
+                         "VAMF", "Data", "import_history.json"
+                     ).Replace("\\", "/") let json = File.ReadAllText(importHistoryPath) let importHistory = JsonUtility.FromJson<PackageImportHistory>(json) let importHistoryFile = importHistory.files.Find(file => file.filePath == dependency) where importHistoryFile != null where importHistoryFile.fileHash != hash select dependency) {
+                MoveAsset(dependency, currentTarget);
             }
         }
 
-        private void SaveMaterialFiles() {
+        private static void SaveMaterialFiles() {
         
-            string importHistoryPath = Path.Combine(
+            var importHistoryPath = Path.Combine(
                 Application.dataPath,
                 "VAMF", "Data", "import_history.json"
             ).Replace("\\", "/");
@@ -404,43 +374,37 @@ namespace VAMF.Editor.Window {
             }
         
             try {
-                string jsonContent = File.ReadAllText(importHistoryPath);
-                var importHistory = JsonUtility.FromJson<Utility.PackageImportHistory>(jsonContent);
+                var jsonContent = File.ReadAllText(importHistoryPath);
+                var importHistory = JsonUtility.FromJson<PackageImportHistory>(jsonContent);
             
                 if(importHistory?.files == null) {
                     Debug.LogWarning("Failed to parse JSON file");
                     return;
                 }
             
-                int savedCount = 0;
+                var savedCount = 0;
             
-                foreach(var fileInfo in importHistory.files) {
-                    string assetPath = fileInfo.filePath;
-                    if(assetPath.EndsWith(".mat", StringComparison.OrdinalIgnoreCase) && File.Exists(assetPath)) {
-                        try {
-                            Material material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
-                            if(material != null) {
-                                EditorUtility.SetDirty(material);
-                                savedCount++;
-                            }
-                        }catch(Exception ex) {
-                            Debug.LogError($"Error saving material: {assetPath}, Error: {ex.Message}");
-                        }
+                foreach (var assetPath in importHistory.files.Select(fileInfo => fileInfo.filePath).Where(assetPath => assetPath.EndsWith(".mat", StringComparison.OrdinalIgnoreCase) && File.Exists(assetPath))) {
+                    try {
+                        var material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+                        if (material is null) continue;
+                        EditorUtility.SetDirty(material);
+                        savedCount++;
+                    }catch(Exception ex) {
+                        Debug.LogError($"Error saving material: {assetPath}, Error: {ex.Message}");
                     }
                 }
-            
-                if(savedCount > 0) {
-                    AssetDatabase.SaveAssets();
-                    AssetDatabase.Refresh();
-                }
+
+                if (savedCount <= 0) return;
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
             }catch(Exception ex) {
                 Debug.LogError($"Error saving material files: {ex.Message}");
             }
         }
 
-        private void MoveAsset(string dependency, GameObject currentTarget) {
-            string assetPath = dependency;
-            string directoryPath = Path.Combine(
+        private static void MoveAsset(string dependency, GameObject currentTarget) {
+            var directoryPath = Path.Combine(
                 "Assets",
                 "_Modify",
                 "System"
@@ -450,139 +414,131 @@ namespace VAMF.Editor.Window {
                 Directory.CreateDirectory(directoryPath);
             }
         
-            string newAssetPath = Path.Combine(
+            var newAssetPath = Path.Combine(
                 directoryPath,
-                Path.GetFileName(assetPath)
+                Path.GetFileName(dependency)
             ).Replace("\\", "/");
         
             if(File.Exists(newAssetPath)) {
                 AssetDatabase.DeleteAsset(newAssetPath);
             }
         
-            AssetDatabase.CopyAsset(assetPath, newAssetPath);
+            AssetDatabase.CopyAsset(dependency, newAssetPath);
             AssetDatabase.Refresh();
         
-            UnityEngine.Object originalAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
-            UnityEngine.Object newAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(newAssetPath);
-        
-            if(originalAsset != null && newAsset != null) {
-                Component[] components = currentTarget.GetComponentsInChildren<Component>(true);
-                foreach(Component component in components) {
-                    if(component == null) continue;
-                
-                    SerializedObject serializedObject = new SerializedObject(component);
-                    SerializedProperty property = serializedObject.GetIterator();
-                
-                    bool modified = false;
-                
-                    while(property.Next(true)) {
-                        if(property.propertyType         == SerializedPropertyType.ObjectReference && 
-                           property.objectReferenceValue == originalAsset) {
-                            property.objectReferenceValue = newAsset;
-                            modified = true;
-                        }
-                    }
-                
-                    if(modified) {
-                        serializedObject.ApplyModifiedProperties();
-                        EditorUtility.SetDirty(component);
-                    }
-                }
-            
-                EditorSceneManager.MarkSceneDirty(currentTarget.scene);
+            var originalAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(dependency);
+            var newAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(newAssetPath);
 
-                GameObject prefabRoot = PrefabUtility.GetNearestPrefabInstanceRoot(currentTarget);
-                if (prefabRoot != null) {
-                    PrefabUtility.ApplyPrefabInstance(prefabRoot, InteractionMode.AutomatedAction);
+            if(originalAsset == null || newAsset == null) return;
+            var components = currentTarget.GetComponentsInChildren<Component>(true);
+            foreach(var component in components) {
+                if(component is null) continue;
+                
+                var serializedObject = new SerializedObject(component);
+                var property = serializedObject.GetIterator();
+                
+                var modified = false;
+                
+                while(property.Next(true)) {
+                    if (property.propertyType         != SerializedPropertyType.ObjectReference ||
+                        property.objectReferenceValue != originalAsset) continue;
+                    property.objectReferenceValue = newAsset;
+                    modified = true;
                 }
+
+                if (!modified) continue;
+                serializedObject.ApplyModifiedProperties();
+                EditorUtility.SetDirty(component);
+            }
+            
+            EditorSceneManager.MarkSceneDirty(currentTarget.scene);
+
+            var prefabRoot = PrefabUtility.GetNearestPrefabInstanceRoot(currentTarget);
+            if (prefabRoot is not null) {
+                PrefabUtility.ApplyPrefabInstance(prefabRoot, InteractionMode.AutomatedAction);
             }
         }
 
         private static string CalculateFileHash(string filePath) {
             try {
-                using(var md5 = MD5.Create()) {
-                    using(var stream = File.OpenRead(filePath)) {
-                        byte[] hashBytes = md5.ComputeHash(stream);
-                        StringBuilder sb = new StringBuilder();
+                using var md5 = MD5.Create();
+                using var stream = File.OpenRead(filePath);
+                var hashBytes = md5.ComputeHash(stream);
+                var sb = new StringBuilder();
                     
-                        for(int i = 0; i < hashBytes.Length; i++) {
-                            sb.Append(hashBytes[i].ToString("x2"));
-                        }
-                    
-                        return sb.ToString();
-                    }
+                foreach (var t in hashBytes) {
+                    sb.Append(t.ToString("x2"));
                 }
+                    
+                return sb.ToString();
             }catch(Exception ex) {
                 Debug.LogError($"Error calculating hash for file: {filePath}, Error: {ex.Message}");
                 return "error_calculating_hash";
             }
         }
 
-        private void RestoreOriginalReferences(GameObject currentTarget) {
-            string importHistoryPath = Path.Combine(
+        private static void RestoreOriginalReferences(GameObject currentTarget) {
+            var importHistoryPath = Path.Combine(
                 Application.dataPath,
                 "VAMF", "Data", "import_history.json"
             ).Replace("\\", "/");
 
             if (!File.Exists(importHistoryPath)) return;
 
-            string json = File.ReadAllText(importHistoryPath);
-            var importHistory = JsonUtility.FromJson<Utility.PackageImportHistory>(json);
+            var json = File.ReadAllText(importHistoryPath);
+            var importHistory = JsonUtility.FromJson<PackageImportHistory>(json);
 
-            Component[] components = currentTarget.GetComponentsInChildren<Component>(true);
-            foreach (Component component in components) {
-                if (component == null) continue;
+            var components = currentTarget.GetComponentsInChildren<Component>(true);
+            foreach (var component in components) {
+                if (component is null) continue;
 
-                SerializedObject serializedObject = new SerializedObject(component);
-                SerializedProperty property = serializedObject.GetIterator();
-                bool modified = false;
+                var serializedObject = new SerializedObject(component);
+                var property = serializedObject.GetIterator();
+                var modified = false;
 
                 while (property.Next(true)) {
-                    if (property.propertyType         == SerializedPropertyType.ObjectReference &&
-                        property.objectReferenceValue != null) {
-                        string assetPath = AssetDatabase.GetAssetPath(property.objectReferenceValue);
-                        if (assetPath.StartsWith("Assets/_Modify/")) {
-                            string fileName = Path.GetFileName(assetPath);
-                            var originalFile = importHistory.files.Find(f => Path.GetFileName(f.filePath) == fileName);
-                            if (originalFile != null) {
-                                UnityEngine.Object originalAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(originalFile.filePath);
-                                if (originalAsset != null) {
-                                    property.objectReferenceValue = originalAsset;
-                                    modified = true;
-                                }
-                            }
-                        }
-                    }
+                    if(property.propertyType != SerializedPropertyType.ObjectReference ||
+                        property.objectReferenceValue == null) continue;
+                    var assetPath = AssetDatabase.GetAssetPath(property.objectReferenceValue);
+                    if(!assetPath.StartsWith("Assets/_Modify/")) continue;
+                    var fileName = Path.GetFileName(assetPath);
+                    var originalFile = importHistory.files.Find(f => Path.GetFileName(f.filePath) == fileName);
+                    if(originalFile == null) continue;
+                    var originalAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(originalFile.filePath);
+                    if(originalAsset == null) continue;
+                    property.objectReferenceValue = originalAsset;
+                    modified = true;
                 }
 
-                if (modified) {
-                    serializedObject.ApplyModifiedProperties();
-                    EditorUtility.SetDirty(component);
-                }
+                if(!modified) continue;
+                serializedObject.ApplyModifiedProperties();
+                EditorUtility.SetDirty(component);
             }
 
             EditorSceneManager.MarkSceneDirty(currentTarget.scene);
 
-            GameObject prefabRoot = PrefabUtility.GetNearestPrefabInstanceRoot(currentTarget);
-            if (prefabRoot != null) {
+            var prefabRoot = PrefabUtility.GetNearestPrefabInstanceRoot(currentTarget);
+            if (prefabRoot is not null) {
                 PrefabUtility.ApplyPrefabInstance(prefabRoot, InteractionMode.AutomatedAction);
             }
         }
 
-        private class Style {
+        private static class Style {
 
-            public static GUIStyle DetailTitle;
-            public static GUIStyle DetailValue;
+            public static readonly GUIStyle DetailTitle;
+            public static readonly GUIStyle DetailValue;
 
             static Style() {
-                DetailTitle = new GUIStyle(EditorStyles.boldLabel);
-                DetailTitle.fontSize = 15;
-                DetailTitle.fontStyle = FontStyle.Bold;
-                DetailTitle.margin = new RectOffset(0, 0, 5, 5);
-                DetailValue = new GUIStyle(EditorStyles.label);
-                DetailValue.fontSize = 12;
-                DetailValue.alignment = TextAnchor.MiddleLeft;
-                DetailValue.margin = new RectOffset(0, 0, 5, 5);
+                DetailTitle = new GUIStyle(EditorStyles.boldLabel) {
+                    fontSize = 15,
+                    fontStyle = FontStyle.Bold,
+                    margin = new RectOffset(0, 0, 5, 5)
+                };
+                DetailValue = new GUIStyle(EditorStyles.label) {
+                    fontSize = 12,
+                    alignment = TextAnchor.MiddleLeft,
+                    margin = new RectOffset(0, 0, 5, 5)
+                };
             }
         }
     }

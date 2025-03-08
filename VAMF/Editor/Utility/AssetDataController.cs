@@ -10,23 +10,20 @@ using VAMF.Editor.Schemas;
 namespace VAMF.Editor.Utility {
     public static class AssetDataController {
         public static void AutoRegisterAssetData() {
-            if (!Directory.Exists(Constants.AssetsDirPath)) {
-                Directory.CreateDirectory(Constants.AssetsDirPath);
-            }
 
             var assetList = GetAllAssetData();
 
             assetList.RemoveAll(asset => {
-                var assetFullPath = Constants.RootDirPath + "/" + asset.sourceFilePath;
-                var modifyFullPath = Constants.RootDirPath + "/" + asset.sourceFilePath;
+                var assetFullPath = ContentsPath.RootDirPath + "/" + asset.sourceFilePath;
+                var modifyFullPath = ContentsPath.RootDirPath + "/" + asset.sourceFilePath;
 
                 if (File.Exists(assetFullPath) || File.Exists(modifyFullPath)) return false;
                 Debug.Log($"Removing asset data for non-existent file: {asset.name} ({asset.sourceFilePath})");
                 return true;
             });
 
-            foreach (var unityPackageFile in Directory.GetFiles(Constants.AssetsDirPath, "*.unitypackage")) {
-                var relativeUnityPackageFilePath = unityPackageFile.Replace("\\", "/").Replace(Constants.RootDirPath, "");
+            foreach (var unityPackageFile in Directory.GetFiles(ContentsPath.AssetsDirPath, "*.unitypackage")) {
+                var relativeUnityPackageFilePath = unityPackageFile.Replace("\\", "/").Replace(ContentsPath.RootDirPath, "");
                 if (assetList.Find(asset => asset.sourceFilePath == relativeUnityPackageFilePath) != null) continue;
                 var assetData = new AssetData {
                     uid = Guid.NewGuid().ToString(),
@@ -45,8 +42,8 @@ namespace VAMF.Editor.Utility {
                 assetList.Add(assetData);
             }
 
-            foreach (var zipFile in Directory.GetFiles(Constants.AssetsDirPath, "*.zip")) {
-                var relativeZipFilePath = zipFile.Replace("\\", "/").Replace(Constants.RootDirPath, "");
+            foreach (var zipFile in Directory.GetFiles(ContentsPath.AssetsDirPath, "*.zip")) {
+                var relativeZipFilePath = zipFile.Replace("\\", "/").Replace(ContentsPath.RootDirPath, "");
                 if (assetList.Find(asset => asset.sourceFilePath == relativeZipFilePath) != null) continue;
                 var newUid = Guid.NewGuid().ToString();
                 var unzipFilePath = UnzipFile(zipFile, newUid);
@@ -76,17 +73,16 @@ namespace VAMF.Editor.Utility {
                 Debug.LogError($"Asset data not found: {uid}");
                 return null;
             }
-            if (assetList.FindAll(asset => asset.uid == uid).Count > 1) {
-                Debug.LogError($"Asset uid is not unique: {uid}");
-                return null;
-            }
 
-            return assetList.Find(asset => asset.uid == uid);
+            if (assetList.FindAll(asset => asset.uid == uid).Count <= 1)
+                return assetList.Find(asset => asset.uid == uid);
+            Debug.LogError($"Asset uid is not unique: {uid}");
+            return null;
+
         }
 
         public static List<AssetData> GetAllAssetData() {
-            var assetDataPath = GetAssetDataPath();
-
+            var assetDataPath = ContentsPath.DataFilePath;
             try {
                 var jsonContent = File.ReadAllText(assetDataPath);
                 var assetDataList = JsonUtility.FromJson<AssetDataList>(jsonContent);
@@ -122,7 +118,7 @@ namespace VAMF.Editor.Utility {
         }
 
         public static void UpdateUnityPackage(AssetData assetData) {
-            var fullPath = Path.Combine(Constants.RootDirPath, assetData.sourceFilePath);
+            var fullPath = Path.Combine(ContentsPath.RootDirPath, assetData.sourceFilePath);
             fullPath = Path.GetFullPath(fullPath);
 
             var unzipFilePath = UnzipFile(fullPath, assetData.uid, true);
@@ -133,24 +129,8 @@ namespace VAMF.Editor.Utility {
             UpdateAssetData(assetData.uid, newAssetData);
         }
 
-        private static string GetAssetDataPath() {
-            if (!Directory.Exists(Constants.RootDirPath)) {
-                Directory.CreateDirectory(Constants.RootDirPath);
-            }
-
-            if (File.Exists(Constants.DataFilePath)) return Constants.DataFilePath;
-            var assetDataList = new AssetDataList {
-                assetList = new List<AssetData>()
-            };
-            var jsonContent = JsonUtility.ToJson(assetDataList, true);
-            File.WriteAllText(Constants.DataFilePath, jsonContent);
-            Debug.Log($"Asset data file created at: {Constants.DataFilePath}");
-
-            return Constants.DataFilePath;
-        }
-
         private static void SaveAssetDataList(List<AssetData> newAssetList) {
-            var assetDataPath = GetAssetDataPath();
+            var assetDataPath = ContentsPath.DataFilePath;
             var assetDataList = new AssetDataList {
                 assetList = newAssetList
             };
@@ -159,9 +139,6 @@ namespace VAMF.Editor.Utility {
         }
 
         private static string UnzipFile(string zipFilePath, string uid = null, bool forceDialog = false) {
-            if(!Directory.Exists(Constants.UnzipDirPath)) {
-                Directory.CreateDirectory(Constants.UnzipDirPath);
-            }
 
             try {
                 using var archive = ZipFile.OpenRead(zipFilePath);
@@ -176,14 +153,14 @@ namespace VAMF.Editor.Utility {
                 }
 
                 var guidToUse = uid ?? Guid.NewGuid().ToString();
-                var extractPath = Path.Combine(Constants.UnzipDirPath, unityPackages[targetIndex].Name)
+                var extractPath = Path.Combine(ContentsPath.UnzipDirPath, unityPackages[targetIndex].Name)
                     .Replace(".unitypackage", $"_{guidToUse}.unitypackage").Replace("\\", "/");
                 if(File.Exists(extractPath)) {
                     File.Delete(extractPath);
                 }
 
                 unityPackages[targetIndex].ExtractToFile(extractPath);
-                return extractPath.Replace(Constants.UnzipDirPath, "Unzip");
+                return extractPath.Replace(ContentsPath.UnzipDirPath, "Unzip");
             }catch(Exception e) {
                 Debug.LogError($"Error occurred while unzipping file: {e.Message}");
                 return null;

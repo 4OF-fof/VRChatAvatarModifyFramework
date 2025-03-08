@@ -30,7 +30,7 @@ namespace VAMF.Editor.Utility {
                      select AssetDataController.GetAssetData(dependency) 
                      into dependencyAssetData 
                      where dependencyAssetData != null 
-                     select Constants.RootDirPath + "/" + dependencyAssetData.filePath) {
+                     select ContentsPath.RootDirPath + "/" + dependencyAssetData.filePath) {
                 AssetDatabase.ImportPackage(unityPackagePath, false);
             }
         }

@@ -6,6 +6,7 @@ using UnityEngine;
 using VAMF.Editor.Components;
 using VAMF.Editor.Components.CustomPopup;
 using VAMF.Editor.Schemas;
+using VAMF.Editor.Utility;
 
 namespace VAMF.Editor.Window {
     public class VrchatAssetManager : EditorWindow {
@@ -27,9 +28,10 @@ namespace VAMF.Editor.Window {
         }
 
         void OnEnable() {
+            ContentsPath.Initialize();
             Thumbnail.ClearCache();
-            Utility.AssetDataController.AutoRegisterAssetData();
-            _assetDataList = Utility.AssetDataController.GetAllAssetData();
+            AssetDataController.AutoRegisterAssetData();
+            _assetDataList = AssetDataController.GetAllAssetData();
             _filteredAssetList = _assetDataList;
             _searchName = "";
             _searchDescription = "";
@@ -58,8 +60,8 @@ namespace VAMF.Editor.Window {
                     if(GUILayout.Button("Sync Avatar List", Style.SyncButton)) {
                         EditorApplication.delayCall += () => {
                             Thumbnail.ClearCache();
-                            Utility.AssetDataController.AutoRegisterAssetData();
-                            _assetDataList = Utility.AssetDataController.GetAllAssetData();
+                            AssetDataController.AutoRegisterAssetData();
+                            _assetDataList = AssetDataController.GetAllAssetData();
                             UpdateAvatarList();
                             _filteredAssetList = _assetDataList;
                             _searchName = "";
@@ -236,7 +238,7 @@ namespace VAMF.Editor.Window {
 
         public void RefreshAssetList() {
             Thumbnail.ClearCache();
-            _assetDataList = Utility.AssetDataController.GetAllAssetData();
+            _assetDataList = AssetDataController.GetAllAssetData();
             UpdateAvatarList();
             FilterAssets();
             Repaint();

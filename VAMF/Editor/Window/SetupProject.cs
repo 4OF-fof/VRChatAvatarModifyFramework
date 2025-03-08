@@ -12,27 +12,26 @@ namespace VAMF.Editor.Window {
     
         [MenuItem("Assets/Start Modification", priority = 0)]
         private static void ShowWindowFromContext() {
-            GameObject selectedObject = Selection.activeGameObject;
-            if (selectedObject != null) {
-                SetupProject window = GetWindow<SetupProject>("Setup Project");
-                window.minSize = new Vector2(350, 150);
-                window.maxSize = new Vector2(350, 150);
-                window._prefabObject = selectedObject;
-                window.Show();
-            }
+            var selectedObject = Selection.activeGameObject;
+            if (selectedObject == null) return;
+            var window = GetWindow<SetupProject>("Setup Project");
+            window.minSize = new Vector2(350, 150);
+            window.maxSize = new Vector2(350, 150);
+            window._prefabObject = selectedObject;
+            window.Show();
         }
 
         [MenuItem("Assets/Start Modification", true)]
         private static bool ValidateShowWindowFromContext() {
-            GameObject selectedObject = Selection.activeGameObject;
+            var selectedObject = Selection.activeGameObject;
             return selectedObject != null;
         }
 
-        void OnGUI() {
+        private void OnGUI() {
             GUILayout.Label("Start Modification", EditorStyles.boldLabel);
             GUILayout.Space(10);
         
-            GameObject previousObject = _prefabObject;
+            var previousObject = _prefabObject;
             _prefabObject = (GameObject)EditorGUILayout.ObjectField("Select Base Avatar", _prefabObject, typeof(GameObject), false);
         
             if(previousObject != _prefabObject) {
@@ -74,22 +73,20 @@ namespace VAMF.Editor.Window {
                 return false;
             }
         
-            GameObject parentPrefab = PrefabUtility.GetCorrespondingObjectFromOriginalSource(_prefabObject);
+            var parentPrefab = PrefabUtility.GetCorrespondingObjectFromOriginalSource(_prefabObject);
         
-            if(parentPrefab == null) {
+            if(parentPrefab is null) {
                 error = "Parent Prefab not found";
                 return false;
             }
         
-            string assetPath = AssetDatabase.GetAssetPath(parentPrefab);
-            bool isFbx = assetPath.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase);
-        
-            if(!isFbx && !_fbxWarningResult.HasValue) {
-                Repaint();
-                return false;
-            }
-        
-            return true;
+            var assetPath = AssetDatabase.GetAssetPath(parentPrefab);
+            var isFbx = assetPath.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase);
+
+            if (isFbx || _fbxWarningResult.HasValue) return true;
+            Repaint();
+            return false;
+
         }
     
         private void StartModification() {
@@ -97,12 +94,12 @@ namespace VAMF.Editor.Window {
                 return;
             }
             
-            string modifyFolderPath = "Assets/_Modify";
+            const string modifyFolderPath = "Assets/_Modify";
         
             if(!AssetDatabase.IsValidFolder(modifyFolderPath)) {
                 try {
-                    string parentFolder = "Assets";
-                    string folderName = "_Modify";
+                    const string parentFolder = "Assets";
+                    const string folderName = "_Modify";
                     AssetDatabase.CreateFolder(parentFolder, folderName);
                     AssetDatabase.Refresh();
                     Debug.Log($"Created directory: {modifyFolderPath}");
@@ -113,11 +110,11 @@ namespace VAMF.Editor.Window {
                     return;
                 }
             }else {
-                string fullPath = Path.Combine(Application.dataPath, "_Modify");
-                bool isEmpty = !Directory.EnumerateFileSystemEntries(fullPath).Any();
+                var fullPath = Path.Combine(Application.dataPath, "_Modify");
+                var isEmpty = !Directory.EnumerateFileSystemEntries(fullPath).Any();
             
                 if(!isEmpty) {
-                    bool shouldClear = EditorUtility.DisplayDialog(
+                    var shouldClear = EditorUtility.DisplayDialog(
                         "Confirmation",
                         "Existing files found in the Modify folder.\n"       +
                         "Continuing will delete all files in this folder.\n" +
@@ -128,18 +125,18 @@ namespace VAMF.Editor.Window {
                 
                     if(shouldClear) {
                         try {
-                            string[] files = Directory.GetFiles(fullPath, "*", SearchOption.AllDirectories);
+                            var files = Directory.GetFiles(fullPath, "*", SearchOption.AllDirectories);
                         
-                            foreach(string file in files) {
-                                string filePath = "Assets" + file.Substring(Application.dataPath.Length).Replace('\\', '/');
+                            foreach(var file in files) {
+                                var filePath = "Assets" + file.Substring(Application.dataPath.Length).Replace('\\', '/');
                                 AssetDatabase.DeleteAsset(filePath);
                             }
                         
-                            string[] directories = Directory.GetDirectories(fullPath, "*", SearchOption.AllDirectories)
+                            var directories = Directory.GetDirectories(fullPath, "*", SearchOption.AllDirectories)
                                 .OrderByDescending(d => d.Length).ToArray();
                             
-                            foreach(string dir in directories) {
-                                string dirPath = "Assets" + dir.Substring(Application.dataPath.Length).Replace('\\', '/');
+                            foreach(var dir in directories) {
+                                var dirPath = "Assets" + dir.Substring(Application.dataPath.Length).Replace('\\', '/');
                                 AssetDatabase.DeleteAsset(dirPath);
                             }
                         
@@ -158,16 +155,16 @@ namespace VAMF.Editor.Window {
                 }
             }
         
-            string newPrefabPath = $"{modifyFolderPath}/{_prefabObject.name}_Modified.prefab";
+            var newPrefabPath = $"{modifyFolderPath}/{_prefabObject.name}_Modified.prefab";
         
             if(File.Exists(newPrefabPath)) {
                 AssetDatabase.DeleteAsset(newPrefabPath);
             }
         
-            GameObject instanceInScene = PrefabUtility.InstantiatePrefab(_prefabObject) as GameObject;
-            GameObject newPrefabVariant = PrefabUtility.SaveAsPrefabAssetAndConnect(instanceInScene, newPrefabPath, InteractionMode.AutomatedAction);
+            var instanceInScene = PrefabUtility.InstantiatePrefab(_prefabObject) as GameObject;
+            var newPrefabVariant = PrefabUtility.SaveAsPrefabAssetAndConnect(instanceInScene, newPrefabPath, InteractionMode.AutomatedAction);
         
-            if(newPrefabVariant != null) {
+            if(newPrefabVariant is not null) {
                 Selection.activeGameObject = instanceInScene;
             
                 EditorUtility.DisplayDialog("Success", 
@@ -176,7 +173,7 @@ namespace VAMF.Editor.Window {
                     "The prefab has been placed in the hierarchy.",
                     "OK");
             } else {
-                if(instanceInScene != null) {
+                if(instanceInScene is not null) {
                     DestroyImmediate(instanceInScene);
                 }
             
@@ -186,25 +183,22 @@ namespace VAMF.Editor.Window {
             }
         }
 
-        void Update() {
-            if(_prefabObject != null) {
-                GameObject parentPrefab = PrefabUtility.GetCorrespondingObjectFromOriginalSource(_prefabObject);
-                if(parentPrefab != null) {
-                    string assetPath = AssetDatabase.GetAssetPath(parentPrefab);
-                    bool isFbx = assetPath.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase);
-                
-                    if(!isFbx && !_fbxWarningResult.HasValue) {
-                        EditorUtility.DisplayDialog(
-                            "Warning",
-                            "The parent prefab is not an FBX file.\n" +
-                            "File path: "                             + assetPath,
-                            "OK"
-                        );
-                        _fbxWarningResult = true;
-                        Repaint();
-                    }
-                }
-            }
+        private void Update() {
+            if (_prefabObject == null) return;
+            var parentPrefab = PrefabUtility.GetCorrespondingObjectFromOriginalSource(_prefabObject);
+            if (parentPrefab == null) return;
+            var assetPath = AssetDatabase.GetAssetPath(parentPrefab);
+            var isFbx = assetPath.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase);
+
+            if (isFbx || _fbxWarningResult.HasValue) return;
+            EditorUtility.DisplayDialog(
+                "Warning",
+                "The parent prefab is not an FBX file.\n" +
+                "File path: " + assetPath,
+                "OK"
+            );
+            _fbxWarningResult = true;
+            Repaint();
         }
     }
 }
