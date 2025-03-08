@@ -18,10 +18,10 @@ namespace VAMF.Editor.Window {
         private Vector2 _scrollPosition = Vector2.zero;
         private const int PreviewLayer = 30;
         private Color _backgroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
-        private GameObject _currentTarget = null;
+        private GameObject _currentTarget;
         private int _previousCullingMask;
-        private bool _isInitialized = false;
-        private RenderTexture _previewRT = null;
+        private bool _isInitialized;
+        private RenderTexture _previewRT;
 
         [MenuItem("GameObject/Save as Modified Avatar", priority = -1000000)]
         private static void ShowWindow() {

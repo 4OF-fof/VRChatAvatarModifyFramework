@@ -51,14 +51,19 @@ namespace VAMF.Editor.Components.CustomPopup {
                 }
                 GUILayout.FlexibleSpace();
                 using(new GUILayout.VerticalScope(GUILayout.Height(25))) {
-                    if(!_editMode && _history.Count == 0) {
-                        GUILayout.Label("Asset Details", Style.WindowTitle);
-                    }else if(!_editMode && _history.Count > 0) {
-                        GUILayout.Label("Asset Details", Style.WindowTitleBack);
-                    }else if(_editMode && _history.Count == 0) {
-                        GUILayout.Label("Edit Asset Details", Style.WindowTitleEdit);
-                    }else if(_editMode && _history.Count > 0) {
-                        GUILayout.Label("Edit Asset Details", Style.WindowTitleEditBack);
+                    switch (_editMode) {
+                        case false when _history.Count == 0:
+                            GUILayout.Label("Asset Details", Style.WindowTitle);
+                            break;
+                        case false when _history.Count > 0:
+                            GUILayout.Label("Asset Details", Style.WindowTitleBack);
+                            break;
+                        case true when _history.Count == 0:
+                            GUILayout.Label("Edit Asset Details", Style.WindowTitleEdit);
+                            break;
+                        case true when _history.Count > 0:
+                            GUILayout.Label("Edit Asset Details", Style.WindowTitleEditBack);
+                            break;
                     }
                 }
                 GUILayout.FlexibleSpace();
@@ -164,14 +169,12 @@ namespace VAMF.Editor.Components.CustomPopup {
                         GUILayout.Label("Support Avatar", Style.DetailTitle);
                         foreach(var avatarUid in _assetData.supportAvatar) {
                             var supportAvatar = AssetDataController.GetAssetData(avatarUid);
-                            if(supportAvatar != null) {
-                                if(GUILayout.Button(supportAvatar.name, Style.DependencyLinkStyle)) {
-                                    var newHistory = new Stack<AssetData>(_history);
-                                    newHistory.Push(_assetData);
-                                    ShowWindow(supportAvatar, newHistory);
-                                    return;
-                                }
-                            }
+                            if (supportAvatar == null) continue;
+                            if (!GUILayout.Button(supportAvatar.name, Style.DependencyLinkStyle)) continue;
+                            var newHistory = new Stack<AssetData>(_history);
+                            newHistory.Push(_assetData);
+                            ShowWindow(supportAvatar, newHistory);
+                            return;
                         }
                     }
 
@@ -179,14 +182,12 @@ namespace VAMF.Editor.Components.CustomPopup {
                         GUILayout.Label("Dependencies", Style.DetailTitle);
                         foreach(var dependencyUid in _assetData.dependencies) {
                             var dependencyAsset = AssetDataController.GetAssetData(dependencyUid);
-                            if(dependencyAsset != null) {
-                                if(GUILayout.Button(dependencyAsset.name, Style.DependencyLinkStyle)) {
-                                    var newHistory = new Stack<AssetData>(_history);
-                                    newHistory.Push(_assetData);
-                                    ShowWindow(dependencyAsset, newHistory);
-                                    return;
-                                }
-                            }
+                            if (dependencyAsset == null) continue;
+                            if (!GUILayout.Button(dependencyAsset.name, Style.DependencyLinkStyle)) continue;
+                            var newHistory = new Stack<AssetData>(_history);
+                            newHistory.Push(_assetData);
+                            ShowWindow(dependencyAsset, newHistory);
+                            return;
                         }
                     }
 
@@ -194,14 +195,12 @@ namespace VAMF.Editor.Components.CustomPopup {
                         GUILayout.Label("Old Versions", Style.DetailTitle);
                         foreach(var oldVersion in _assetData.oldVersions) {
                             var oldVersionAsset = AssetDataController.GetAssetData(oldVersion);
-                            if(oldVersionAsset != null) {
-                                if(GUILayout.Button(oldVersionAsset.name, Style.DependencyLinkStyle)) {
-                                    var newHistory = new Stack<AssetData>(_history);
-                                    newHistory.Push(_assetData);
-                                    ShowWindow(oldVersionAsset, newHistory);
-                                    return;
-                                }
-                            }
+                            if (oldVersionAsset == null) continue;
+                            if (!GUILayout.Button(oldVersionAsset.name, Style.DependencyLinkStyle)) continue;
+                            var newHistory = new Stack<AssetData>(_history);
+                            newHistory.Push(_assetData);
+                            ShowWindow(oldVersionAsset, newHistory);
+                            return;
                         }
                     }
 

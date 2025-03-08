@@ -7,8 +7,8 @@ namespace VAMF.Editor.Window {
     public class SetupProject : EditorWindow {
         private GameObject _prefabObject;
         private string _errorMessage = "";
-        private bool _isValid = false;
-        private bool? _fbxWarningResult = null;
+        private bool _isValid;
+        private bool? _fbxWarningResult;
     
         [MenuItem("Assets/Start Modification", priority = 0)]
         private static void ShowWindowFromContext() {
@@ -41,7 +41,7 @@ namespace VAMF.Editor.Window {
                 _fbxWarningResult = null;
             }
         
-            if(_prefabObject != null) {
+            if(_prefabObject is not null) {
                 if(string.IsNullOrEmpty(_errorMessage)) {
                     _isValid = CheckVariant(out _errorMessage);
                 }
@@ -69,12 +69,10 @@ namespace VAMF.Editor.Window {
         private bool CheckVariant(out string error) {
             error = "";
         
-            if(_prefabObject == null) {
+            if(_prefabObject is null) {
                 error = "Base Avatar is not selected";
                 return false;
             }
-        
-            PrefabAssetType prefabType = PrefabUtility.GetPrefabAssetType(_prefabObject);
         
             GameObject parentPrefab = PrefabUtility.GetCorrespondingObjectFromOriginalSource(_prefabObject);
         
@@ -95,12 +93,10 @@ namespace VAMF.Editor.Window {
         }
     
         private void StartModification() {
-            if(!_isValid || _prefabObject == null) {
+            if(!_isValid || _prefabObject is null) {
                 return;
             }
-        
-            GameObject parentPrefab = PrefabUtility.GetCorrespondingObjectFromOriginalSource(_prefabObject);
-            string assetPath = AssetDatabase.GetAssetPath(parentPrefab);
+            
             string modifyFolderPath = "Assets/_Modify";
         
             if(!AssetDatabase.IsValidFolder(modifyFolderPath)) {
