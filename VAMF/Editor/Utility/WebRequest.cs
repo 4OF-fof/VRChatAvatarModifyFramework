@@ -21,26 +21,22 @@ namespace VAMF.Editor.Utility {
                 Debug.LogError("Thumbnail URL is null");
                 return null;
             }
-            string thumbnailFolderPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "VAMF/Thumbnail/Booth"
-            ).Replace("\\", "/");
-            if(!Directory.Exists(thumbnailFolderPath)) {
-                Directory.CreateDirectory(thumbnailFolderPath);
+            if(!Directory.Exists(Constants.BoothThumbnailsDirPath)) {
+                Directory.CreateDirectory(Constants.BoothThumbnailsDirPath);
             }
 
             using var client = new HttpClient();
-            string thumbnailFileName = "booth_" + thumbnailUrl.Split('/')[thumbnailUrl.Split('/').Length - 2] + ".jpg";
-            var thumbnailFilePath = Path.Combine(thumbnailFolderPath, thumbnailFileName);
+            var thumbnailFileName = "booth_" + thumbnailUrl.Split('/')[thumbnailUrl.Split('/').Length - 2] + ".jpg";
+            var thumbnailFilePath = Constants.BoothThumbnailsDirPath + "/" + thumbnailFileName;
             if(File.Exists(thumbnailFilePath)) {
-                return thumbnailFilePath.Replace("\\", "/").Replace(thumbnailFolderPath, "Thumbnail/Booth");
+                return thumbnailFilePath.Replace(Constants.BoothThumbnailsDirPath, "Thumbnail/Booth");
             }
             using(var response = await client.GetAsync(thumbnailUrl)) {
                 await using(var fileStream = File.Create(thumbnailFilePath)) {
                     await response.Content.CopyToAsync(fileStream);
                 }
             }
-            return thumbnailFilePath.Replace("\\", "/").Replace(thumbnailFolderPath, "Thumbnail/Booth");
+            return thumbnailFilePath.Replace(Constants.BoothThumbnailsDirPath, "Thumbnail/Booth");
         }
 
         public static async Task<string> GetThumbnailUrl(string url) {

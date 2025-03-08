@@ -1,20 +1,15 @@
 using System.IO;
 using UnityEditor;
+using VAMF.Editor.Utility;
 
 namespace VAMF.Editor.Window {
     public class OpenFolder : EditorWindow {
         [MenuItem("VAMF/Open VAMF Folder", priority = 101)]
         private static void OpenVamfFolder() {
-            string dataRootPath = Path.Combine(
-                System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
-                "VAMF/Assets"
-                ).Replace("\\", "/");
-
-            if(!Directory.Exists(dataRootPath)) {
-                Directory.CreateDirectory(dataRootPath);
+            if(!Directory.Exists(Constants.AssetsDirPath)) {
+                Directory.CreateDirectory(Constants.AssetsDirPath);
             }
-
-            EditorUtility.RevealInFinder(dataRootPath);
+            EditorUtility.RevealInFinder(Constants.AssetsDirPath);
         }
     }
 } 

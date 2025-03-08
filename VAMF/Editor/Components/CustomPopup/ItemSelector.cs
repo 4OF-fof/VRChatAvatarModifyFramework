@@ -30,8 +30,8 @@ namespace VAMF.Editor.Components.CustomPopup {
             window.ShowPopup();
         }
 
-        void OnGUI() {
-            string previousSearch = _searchItem;
+        private void OnGUI() {
+            var previousSearch = _searchItem;
             using(new GUILayout.HorizontalScope()) {
                 GUILayout.Label("Search:", GUILayout.Width(47));
                 _searchItem = GUILayout.TextField(_searchItem, Style.SearchTextField);
@@ -48,30 +48,30 @@ namespace VAMF.Editor.Components.CustomPopup {
             using(new GUILayout.VerticalScope(EditorStyles.helpBox)) {
                 using(var scrollView = new GUILayout.ScrollViewScope(_scrollPosition)) {
                     _scrollPosition = scrollView.scrollPosition;
-                    if (_filteredAssetList != null)
-                        foreach (var assetData in _filteredAssetList) {
-                            using (new GUILayout.HorizontalScope()) {
-                                bool isExistingDependency = _ignoreList.Contains(assetData.uid);
-                                using (new EditorGUI.DisabledScope(isExistingDependency)) {
-                                    if (GUILayout.Button("+", Style.SelectButton)) {
-                                        if (_onItemSelected != null) {
-                                            _onItemSelected.Invoke(assetData.uid);
-                                        }
+                    if (_filteredAssetList == null) return;
+                    foreach (var assetData in _filteredAssetList) {
+                        using (new GUILayout.HorizontalScope()) {
+                            bool isExistingDependency = _ignoreList.Contains(assetData.uid);
+                            using (new EditorGUI.DisabledScope(isExistingDependency)) {
+                                if (GUILayout.Button("+", Style.SelectButton)) {
+                                    if (_onItemSelected != null) {
+                                        _onItemSelected.Invoke(assetData.uid);
                                     }
                                 }
-
-                                GUILayout.Label(assetData.name);
                             }
+
+                            GUILayout.Label(assetData.name);
                         }
+                    }
                 }
             }
         }
 
-        void OnEnable() {
+        private void OnEnable() {
             wantsMouseMove = true;
         }
 
-        void OnLostFocus() {
+        private void OnLostFocus() {
             _searchItem = "";
             Close();
         }

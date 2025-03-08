@@ -21,12 +21,12 @@ namespace VAMF.Editor.Components.CustomPopup {
             return _result;
         }
 
-        void OnGUI() {
+        private void OnGUI() {
             GUILayout.Label("Please select a package to import.", EditorStyles.wordWrappedLabel);
             GUILayout.Space(10);
 
             using(new GUILayout.ScrollViewScope(_scrollPosition)) {
-                for (int i = 0; i < _unityPackages.Count; i++) {
+                for(var i = 0; i < _unityPackages.Count; i++) {
                     using(new GUILayout.HorizontalScope(EditorStyles.helpBox)) {
                         if (GUILayout.Toggle(_selectedIndex == i, "", GUILayout.Width(20))) {
                             _selectedIndex = i;
@@ -39,15 +39,14 @@ namespace VAMF.Editor.Components.CustomPopup {
 
             GUILayout.Space(20);
 
-            using (new EditorGUI.DisabledScope(_selectedIndex < 0)) {
-                if (GUILayout.Button("Select", GUILayout.Height(30))) {
-                    _result = _selectedIndex;
-                    Close();
-                }
+            using(new EditorGUI.DisabledScope(_selectedIndex < 0)) {
+                if(!GUILayout.Button("Select", GUILayout.Height(30))) return;
+                _result = _selectedIndex;
+                Close();
             }
         }
 
-        void OnDestroy() {
+        private void OnDestroy() {
             _result = _selectedIndex;
         }
     }

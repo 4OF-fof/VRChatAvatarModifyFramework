@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using VAMF.Editor.Schemas;
+using VAMF.Editor.Utility;
 using VAMF.Editor.Window;
 
 namespace VAMF.Editor.Components.CustomPopup {
@@ -14,7 +15,7 @@ namespace VAMF.Editor.Components.CustomPopup {
 
         private AssetData _assetData;
         private AssetData _tmpAssetData;
-        private Stack<AssetData> _history = new Stack<AssetData>();
+        private Stack<AssetData> _history = new();
 
         public static void ShowWindow(AssetData assetData, Stack<AssetData> previousHistory = null) {
             if(assetData == null) {
@@ -24,7 +25,7 @@ namespace VAMF.Editor.Components.CustomPopup {
 
             var window = GetWindow<DetailWindow>($"Asset Details");
         
-            Vector2 windowSize = new Vector2(610, 400);
+            var windowSize = new Vector2(610, 400);
             window.minSize = windowSize;
             window.maxSize = windowSize;
         
@@ -35,7 +36,7 @@ namespace VAMF.Editor.Components.CustomPopup {
             window.Show();
         }
 
-        void OnGUI() {
+        private void OnGUI() {
             {/*-------------------- Header --------------------*/}
 
             GUILayout.Space(10);
@@ -72,11 +73,11 @@ namespace VAMF.Editor.Components.CustomPopup {
                         using(new GUILayout.HorizontalScope()) {
                             if(GUILayout.Button("Save", Style.SaveButton)) {
                                 _assetData = _tmpAssetData.Clone();
-                                Utility.AssetDataController.UpdateAssetData(_assetData.uid, _assetData);
+                                AssetDataController.UpdateAssetData(_assetData.uid, _assetData);
                                 _tmpAssetData = null;
                                 _editMode = false;
                                 var mainWindow = GetWindow<VrchatAssetManager>();
-                                if (mainWindow != null) {
+                                if (mainWindow is not null) {
                                     mainWindow.RefreshAssetList();
                                     EditorApplication.delayCall += () => {
                                         mainWindow.RefreshAssetList();
@@ -122,7 +123,7 @@ namespace VAMF.Editor.Components.CustomPopup {
                         using(new GUILayout.HorizontalScope()) {
                             GUILayout.FlexibleSpace();
                             if(GUILayout.Button("Import Asset", Style.ImportButton)) {
-                                Utility.UnityPackageManager.ImportAsset(_assetData);
+                                UnityPackageManager.ImportAsset(_assetData);
                             }
                             GUILayout.FlexibleSpace();
                         }
@@ -162,7 +163,7 @@ namespace VAMF.Editor.Components.CustomPopup {
                     if(_assetData.supportAvatar.Count > 0) {
                         GUILayout.Label("Support Avatar", Style.DetailTitle);
                         foreach(var avatarUid in _assetData.supportAvatar) {
-                            var supportAvatar = Utility.AssetDataController.GetAssetData(avatarUid);
+                            var supportAvatar = AssetDataController.GetAssetData(avatarUid);
                             if(supportAvatar != null) {
                                 if(GUILayout.Button(supportAvatar.name, Style.DependencyLinkStyle)) {
                                     var newHistory = new Stack<AssetData>(_history);
@@ -177,7 +178,7 @@ namespace VAMF.Editor.Components.CustomPopup {
                     if(_assetData.dependencies.Count > 0) {
                         GUILayout.Label("Dependencies", Style.DetailTitle);
                         foreach(var dependencyUid in _assetData.dependencies) {
-                            var dependencyAsset = Utility.AssetDataController.GetAssetData(dependencyUid);
+                            var dependencyAsset = AssetDataController.GetAssetData(dependencyUid);
                             if(dependencyAsset != null) {
                                 if(GUILayout.Button(dependencyAsset.name, Style.DependencyLinkStyle)) {
                                     var newHistory = new Stack<AssetData>(_history);
@@ -192,7 +193,7 @@ namespace VAMF.Editor.Components.CustomPopup {
                     if(_assetData.oldVersions.Count > 0) {
                         GUILayout.Label("Old Versions", Style.DetailTitle);
                         foreach(var oldVersion in _assetData.oldVersions) {
-                            var oldVersionAsset = Utility.AssetDataController.GetAssetData(oldVersion);
+                            var oldVersionAsset = AssetDataController.GetAssetData(oldVersion);
                             if(oldVersionAsset != null) {
                                 if(GUILayout.Button(oldVersionAsset.name, Style.DependencyLinkStyle)) {
                                     var newHistory = new Stack<AssetData>(_history);
@@ -229,7 +230,7 @@ namespace VAMF.Editor.Components.CustomPopup {
                         if(Path.GetExtension(_assetData.sourceFilePath).ToLower() == ".zip") {
                             if(GUILayout.Button("Select Unity Package", Style.SelectUnityPackageButton)) {
                                 EditorApplication.delayCall += () => {
-                                    Utility.AssetDataController.UpdateUnityPackage(_assetData);
+                                    AssetDataController.UpdateUnityPackage(_assetData);
                                 };
                             }
                         }
@@ -239,14 +240,10 @@ namespace VAMF.Editor.Components.CustomPopup {
                     using(new GUILayout.HorizontalScope()) {
                         _tmpAssetData.thumbnailFilePath = GUILayout.TextField(_tmpAssetData.thumbnailFilePath, GUILayout.ExpandWidth(true));
                         if(GUILayout.Button("...", GUILayout.Width(30))) {
-                            string thumbnailRootPath = Path.Combine(
-                                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                                "VAMF/Thumbnail"
-                            ).Replace("\\", "/");
-                            string path = EditorUtility.OpenFilePanel("Select Thumbnail", thumbnailRootPath, "png,jpg");
+                            var path = EditorUtility.OpenFilePanel("Select Thumbnail", Constants.ThumbnailsDirPath, "png,jpg");
                             if(!string.IsNullOrEmpty(path)) {
-                                if(path.StartsWith(thumbnailRootPath)) {
-                                    path = path.Replace("\\", "/").Replace(thumbnailRootPath + "/", "Thumbnail");
+                                if(path.StartsWith(Constants.ThumbnailsDirPath)) {
+                                    path = path.Replace("\\", "/").Replace(Constants.ThumbnailsDirPath + "/", "Thumbnail");
                                     _tmpAssetData.thumbnailFilePath = path;
                                 }else {
                                     EditorUtility.DisplayDialog("Error", $"Thumbnail must be placed in the VAMF/Thumbnail folder.\n\nSelected path: {path}", "OK");
@@ -260,13 +257,12 @@ namespace VAMF.Editor.Components.CustomPopup {
                         using(new GUILayout.VerticalScope(EditorStyles.helpBox)) {
                             string avatarToRemove = null;
                             foreach(var avatarUid in _tmpAssetData.supportAvatar) {
-                                var avatarAsset = Utility.AssetDataController.GetAssetData(avatarUid);
-                                if(avatarAsset != null) {
-                                    using (new GUILayout.HorizontalScope()) {
-                                        GUILayout.Label(avatarAsset.name, Style.DetailValue);
-                                        if(GUILayout.Button("×", GUILayout.Width(20))) {
-                                            avatarToRemove = avatarUid;
-                                        }
+                                var avatarAsset = AssetDataController.GetAssetData(avatarUid);
+                                if (avatarAsset == null) continue;
+                                using (new GUILayout.HorizontalScope()) {
+                                    GUILayout.Label(avatarAsset.name, Style.DetailValue);
+                                    if(GUILayout.Button("×", GUILayout.Width(20))) {
+                                        avatarToRemove = avatarUid;
                                     }
                                 }
                             }
@@ -282,7 +278,7 @@ namespace VAMF.Editor.Components.CustomPopup {
                                 _tmpAssetData.supportAvatar ??= new List<string>();
                                 _tmpAssetData.supportAvatar.Add(uid);
                                 Repaint();
-                            }, Utility.AssetDataController.GetAllAssetData().Where(asset => asset.assetType == AssetType.Avatar && asset.isLatest).ToList(),
+                            }, AssetDataController.GetAllAssetData().Where(asset => asset.assetType == AssetType.Avatar && asset.isLatest).ToList(),
                             _tmpAssetData.supportAvatar, _tmpAssetData.uid);
                     }
 
@@ -291,13 +287,12 @@ namespace VAMF.Editor.Components.CustomPopup {
                         using(new GUILayout.VerticalScope(EditorStyles.helpBox)) {
                             string dependencyToRemove = null;
                             foreach(var dependencyUid in _tmpAssetData.dependencies) {
-                                var dependencyAsset = Utility.AssetDataController.GetAssetData(dependencyUid);
-                                if(dependencyAsset != null) {
-                                    using (new GUILayout.HorizontalScope()) {
-                                        GUILayout.Label(dependencyAsset.name, Style.DetailValue);
-                                        if(GUILayout.Button("×", GUILayout.Width(20))) {
-                                            dependencyToRemove = dependencyUid;
-                                        }
+                                var dependencyAsset = AssetDataController.GetAssetData(dependencyUid);
+                                if (dependencyAsset == null) continue;
+                                using (new GUILayout.HorizontalScope()) {
+                                    GUILayout.Label(dependencyAsset.name, Style.DetailValue);
+                                    if(GUILayout.Button("×", GUILayout.Width(20))) {
+                                        dependencyToRemove = dependencyUid;
                                     }
                                 }
                             }
@@ -313,7 +308,7 @@ namespace VAMF.Editor.Components.CustomPopup {
                             _tmpAssetData.dependencies ??= new List<string>();
                             _tmpAssetData.dependencies.Add(uid);
                             Repaint();
-                        }, Utility.AssetDataController.GetAllAssetData(), _tmpAssetData.dependencies, _tmpAssetData.uid);
+                        }, AssetDataController.GetAllAssetData(), _tmpAssetData.dependencies, _tmpAssetData.uid);
                     }
 
                     GUILayout.Label("Old Versions", Style.DetailTitle);
@@ -321,22 +316,21 @@ namespace VAMF.Editor.Components.CustomPopup {
                         using(new GUILayout.VerticalScope(EditorStyles.helpBox)) {
                             string versionToRemove = null;
                             foreach(var oldVersion in _tmpAssetData.oldVersions) {
-                                var oldVersionAsset = Utility.AssetDataController.GetAssetData(oldVersion);
-                                if(oldVersionAsset != null) {
-                                    using (new GUILayout.HorizontalScope()) {
-                                        GUILayout.Label(oldVersionAsset.name, Style.DetailValue);
-                                        if(GUILayout.Button("×", GUILayout.Width(20))) {
-                                            versionToRemove = oldVersion;
-                                        }
+                                var oldVersionAsset = AssetDataController.GetAssetData(oldVersion);
+                                if (oldVersionAsset == null) continue;
+                                using (new GUILayout.HorizontalScope()) {
+                                    GUILayout.Label(oldVersionAsset.name, Style.DetailValue);
+                                    if(GUILayout.Button("×", GUILayout.Width(20))) {
+                                        versionToRemove = oldVersion;
                                     }
                                 }
                             }
                             if(versionToRemove != null) {
                                 _tmpAssetData.oldVersions.Remove(versionToRemove);
-                                var removedVersionAsset = Utility.AssetDataController.GetAssetData(versionToRemove);
+                                var removedVersionAsset = AssetDataController.GetAssetData(versionToRemove);
                                 if (removedVersionAsset != null) {
                                     removedVersionAsset.isLatest = true;
-                                    Utility.AssetDataController.UpdateAssetData(removedVersionAsset.uid, removedVersionAsset);
+                                    AssetDataController.UpdateAssetData(removedVersionAsset.uid, removedVersionAsset);
                                 }
                             }
                         }
@@ -347,27 +341,26 @@ namespace VAMF.Editor.Components.CustomPopup {
                             if (uid == null) return;
                             _tmpAssetData.oldVersions ??= new List<string>();
                             _tmpAssetData.oldVersions.Add(uid);
-                            var oldVersionAsset = Utility.AssetDataController.GetAssetData(uid);
+                            var oldVersionAsset = AssetDataController.GetAssetData(uid);
                             if (oldVersionAsset != null) {
                                 oldVersionAsset.isLatest = false;
-                                Utility.AssetDataController.UpdateAssetData(oldVersionAsset.uid, oldVersionAsset);
+                                AssetDataController.UpdateAssetData(oldVersionAsset.uid, oldVersionAsset);
                             }
                             Repaint();
-                        }, Utility.AssetDataController.GetAllAssetData(), _tmpAssetData.oldVersions, _tmpAssetData.uid);
+                        }, AssetDataController.GetAllAssetData(), _tmpAssetData.oldVersions, _tmpAssetData.uid);
                     }
 
                     GUILayout.Label("Description", Style.DetailTitle);
-                    float height = Style.DescriptionTextArea.CalcHeight(new GUIContent(_tmpAssetData.description), EditorGUIUtility.currentViewWidth - 40);
-                    float previousHeight = height;
+                    var height = Style.DescriptionTextArea.CalcHeight(new GUIContent(_tmpAssetData.description), EditorGUIUtility.currentViewWidth - 40);
                     _tmpAssetData.description = EditorGUILayout.TextArea(
                         _tmpAssetData.description,
                         Style.DescriptionTextArea,
                         GUILayout.Height(Mathf.Max(80, height))
                     );
 
-                    float newHeight = Style.DescriptionTextArea.CalcHeight(new GUIContent(_tmpAssetData.description), EditorGUIUtility.currentViewWidth - 40);
-                    if(newHeight > previousHeight) {
-                        _scrollPosition.y += (newHeight - previousHeight);
+                    var newHeight = Style.DescriptionTextArea.CalcHeight(new GUIContent(_tmpAssetData.description), EditorGUIUtility.currentViewWidth - 40);
+                    if(newHeight > height) {
+                        _scrollPosition.y += (newHeight - height);
                     }
                 }
             }
@@ -376,10 +369,10 @@ namespace VAMF.Editor.Components.CustomPopup {
         private async void SetThumbnailFromBooth(AssetData assetData) {
             try {
                 Thumbnail.ClearCache();
-                string thumbnailUrl = await Utility.WebRequest.GetThumbnailUrl(assetData.url);
-                string thumbnailFilePath = await Utility.WebRequest.GetThumbnail(thumbnailUrl);
+                var thumbnailUrl = await WebRequest.GetThumbnailUrl(assetData.url);
+                var thumbnailFilePath = await WebRequest.GetThumbnail(thumbnailUrl);
                 assetData.thumbnailFilePath = thumbnailFilePath;
-                Utility.AssetDataController.UpdateAssetData(assetData.uid, assetData);
+                AssetDataController.UpdateAssetData(assetData.uid, assetData);
                 Repaint();
             }
             catch (Exception e) {

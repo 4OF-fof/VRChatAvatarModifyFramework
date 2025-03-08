@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using VAMF.Editor.Utility;
 
 namespace VAMF.Editor.Components {
     public static class Thumbnail {
@@ -11,40 +13,34 @@ namespace VAMF.Editor.Components {
         private static Texture2D _errorThumbnail;
 
         private static void InitializeSystemTextures() {
-            _dummyThumbnail ??= AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/VAMF/Editor/dummy.png");
-            _errorThumbnail ??= AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/VAMF/Editor/dummy.png");
+            _dummyThumbnail ??= AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/VAMF/Assets/dummy.png");
+            _errorThumbnail ??= AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/VAMF/Assets/dummy.png");
         }
 
         public static void ClearCache() {
-            foreach (var texture in ThumbnailCache.Values) {
-                if (texture is not null) {
-                    UnityEngine.Object.DestroyImmediate(texture);
-                }
+            foreach (var texture in ThumbnailCache.Values.Where(texture => texture is not null)) {
+                UnityEngine.Object.DestroyImmediate(texture);
             }
+
             ThumbnailCache.Clear();
         }
 
         public static void DrawThumbnail(string relativeThumbnailFilePath, int size) {
             InitializeSystemTextures();
 
-            string thumbnailFilePath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "VAMF",
-                relativeThumbnailFilePath
-            ).Replace("\\", "/");
+            var thumbnailFilePath = Constants.RootDirPath + "/" + relativeThumbnailFilePath;
 
             if(string.IsNullOrEmpty(thumbnailFilePath)) {
                 GUILayout.Label(new GUIContent(_dummyThumbnail), GUILayout.Width(size), GUILayout.Height(size));
                 return;
             }
 
-            if(ThumbnailCache.TryGetValue(thumbnailFilePath, out Texture2D cachedThumbnail)) {
+            if(ThumbnailCache.TryGetValue(thumbnailFilePath, out var cachedThumbnail)) {
                 if(cachedThumbnail is not null) {
                     GUILayout.Label(new GUIContent(cachedThumbnail), GUILayout.Width(size), GUILayout.Height(size));
                     return;
-                }else {
-                    ThumbnailCache.Remove(thumbnailFilePath);
                 }
+                ThumbnailCache.Remove(thumbnailFilePath);
             }
 
             try {
@@ -65,9 +61,8 @@ namespace VAMF.Editor.Components {
                         ThumbnailCache[thumbnailFilePath] = thumbnail;
                         GUILayout.Label(new GUIContent(thumbnail), GUILayout.Width(size), GUILayout.Height(size));
                         return;
-                    }else {
-                        UnityEngine.Object.DestroyImmediate(thumbnail);
                     }
+                    UnityEngine.Object.DestroyImmediate(thumbnail);
                 }
             }catch(Exception e) {
                 Debug.LogError($"Failed to read thumbnail file: {e.Message}");

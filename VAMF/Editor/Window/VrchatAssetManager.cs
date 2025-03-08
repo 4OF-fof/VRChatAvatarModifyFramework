@@ -83,7 +83,7 @@ namespace VAMF.Editor.Window {
             {/*-------------------- Asset Type --------------------*/}
             GUILayout.Space(10);
             using(new GUILayout.VerticalScope()) {
-                int count = 0;
+                var count = 0;
                 GUILayout.BeginHorizontal();
                 GUILayout.FlexibleSpace();
                 foreach(AssetType type in Enum.GetValues(typeof(AssetType))) {
@@ -91,13 +91,12 @@ namespace VAMF.Editor.Window {
                         _selectedAssetType = type;
                     }
                     count++;
-                    // five Assetypes per line
-                    if(count % 5 == 0) {
-                        GUILayout.FlexibleSpace();
-                        GUILayout.EndHorizontal();
-                        GUILayout.BeginHorizontal();
-                        GUILayout.FlexibleSpace();
-                    }
+                    // five AssetTypes per line
+                    if (count % 5 != 0) continue;
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.FlexibleSpace();
                 }
                 GUILayout.FlexibleSpace();
                 GUILayout.EndHorizontal();
@@ -110,7 +109,7 @@ namespace VAMF.Editor.Window {
 
             using (var scrollView = new GUILayout.ScrollViewScope(_scrollPosition)) {
                 _scrollPosition = scrollView.scrollPosition;
-                int count = 0;
+                var count = 0;
                 GUILayout.BeginHorizontal();
                 GUILayout.FlexibleSpace();
 
@@ -124,12 +123,11 @@ namespace VAMF.Editor.Window {
                     }
                     count++;
                     // five assets per line
-                    if(count % 5 == 0) {
-                        GUILayout.FlexibleSpace();
-                        GUILayout.EndHorizontal();
-                        GUILayout.BeginHorizontal();
-                        GUILayout.FlexibleSpace();
-                    }
+                    if (count % 5 != 0) continue;
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.FlexibleSpace();
                 }
                 GUILayout.FlexibleSpace();
                 GUILayout.EndHorizontal();

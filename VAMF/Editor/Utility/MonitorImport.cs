@@ -19,9 +19,9 @@ namespace VAMF.Editor.Utility {
         [FormerlySerializedAs("Files")] public List<FileHashInfo> files = new List<FileHashInfo>();
     }
 
-    public class MonitorImport {
-        private static List<string> _importedAssetPaths = new List<string>();
-        private static HashSet<string> _preExistingAssetPaths = new HashSet<string>();
+    public static class MonitorImport {
+        private static readonly List<string> ImportedAssetPaths = new List<string>();
+        private static readonly HashSet<string> PreExistingAssetPaths = new HashSet<string>();
         private static string _currentImportingPackage = null;
         private static bool _isImportingPackage = false;
         private static string _outputJsonPath = "Assets/VAMF/Data/import_history.json";
@@ -49,33 +49,33 @@ namespace VAMF.Editor.Utility {
             ProcessImportedPackage(packageName);
             _currentImportingPackage = null;
             _isImportingPackage = false;
-            _importedAssetPaths.Clear();
-            _preExistingAssetPaths.Clear();
+            ImportedAssetPaths.Clear();
+            PreExistingAssetPaths.Clear();
         }
 
         private static void OnImportPackageCancelled(string packageName) {
             _currentImportingPackage = null;
             _isImportingPackage = false;
-            _importedAssetPaths.Clear();
-            _preExistingAssetPaths.Clear();
+            ImportedAssetPaths.Clear();
+            PreExistingAssetPaths.Clear();
         }
 
         private static void OnImportPackageFailed(string packageName, string errorMessage) {
             _currentImportingPackage = null;
             _isImportingPackage = false;
-            _importedAssetPaths.Clear();
-            _preExistingAssetPaths.Clear();
+            ImportedAssetPaths.Clear();
+            PreExistingAssetPaths.Clear();
         }
 
         private static void OnImportPackageStarted(string packageName) {
             _currentImportingPackage = packageName;
             _isImportingPackage = true;
-            _importedAssetPaths.Clear();
-            _preExistingAssetPaths.Clear();
+            ImportedAssetPaths.Clear();
+            PreExistingAssetPaths.Clear();
             
             string[] allAssets = AssetDatabase.GetAllAssetPaths();
             foreach(string assetPath in allAssets) {
-                _preExistingAssetPaths.Add(assetPath);
+                PreExistingAssetPaths.Add(assetPath);
             }
         }
 
@@ -86,7 +86,7 @@ namespace VAMF.Editor.Utility {
         
         private static void SaveMaterialFiles() {
             try {
-                foreach (string assetPath in _importedAssetPaths) {
+                foreach (string assetPath in ImportedAssetPaths) {
                     if(assetPath.EndsWith(".mat", StringComparison.OrdinalIgnoreCase) && File.Exists(assetPath)) {
                         try {
                             Material material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
@@ -111,15 +111,15 @@ namespace VAMF.Editor.Utility {
         }
         
         public static void AddImportedAsset(string assetPath) {
-            if(_isImportingPackage && !_preExistingAssetPaths.Contains(assetPath) && !_importedAssetPaths.Contains(assetPath)) {
-                _importedAssetPaths.Add(assetPath);
+            if(_isImportingPackage && !PreExistingAssetPaths.Contains(assetPath) && !ImportedAssetPaths.Contains(assetPath)) {
+                ImportedAssetPaths.Add(assetPath);
             }
         }
 
         private static void SaveFileHashesToJson(string packageName) {
             List<FileHashInfo> fileHashInfos = new List<FileHashInfo>();
             
-            foreach(string assetPath in _importedAssetPaths) {
+            foreach(string assetPath in ImportedAssetPaths) {
                 if(File.Exists(assetPath)) {
                     string hash = CalculateFileHash(assetPath);
                     fileHashInfos.Add(new FileHashInfo {

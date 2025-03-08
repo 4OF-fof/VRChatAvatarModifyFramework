@@ -1,44 +1,38 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using VAMF.Editor.Schemas;
 
 namespace VAMF.Editor.Utility {
     public static class UnityPackageManager {
         public static void ImportAsset(AssetData assetData) {
-            List<string> importPackageList = new List<string>();
-
-            List<string> dependenciesList = SearchDependencies(assetData.dependencies);
+            var dependenciesList = SearchDependencies(assetData.dependencies);
             dependenciesList.Add(assetData.uid);
-            foreach (string dependency in dependenciesList) {
-                AssetData dependencyAssetData = AssetDataController.GetAssetData(dependency);
-                if(dependencyAssetData != null) {
-                    importPackageList.Add(dependencyAssetData.name);
-                }
-            }
+            var importPackageList = (from dependency 
+                                     in dependenciesList 
+                                     select AssetDataController.GetAssetData(dependency) 
+                                     into dependencyAssetData 
+                                     where dependencyAssetData != null 
+                                     select dependencyAssetData.name).ToList();
+            if (importPackageList.Count <= 0) return;
+            var message = "The following packages will be imported:\n" + string.Join("\n", importPackageList);
+            var userChoice = EditorUtility.DisplayDialog(
+                "Package Import Confirmation",
+                message,
+                "OK",
+                "Cancel"
+            );
 
-            if(importPackageList.Count > 0) {
-                string message = "The following packages will be imported:\n" + string.Join("\n", importPackageList);
-                bool userChoice = EditorUtility.DisplayDialog(
-                    "Package Import Confirmation",
-                    message,
-                    "OK",
-                    "Cancel"
-                );
-                
-                if(userChoice) {
-                    foreach (string dependency in dependenciesList) {
-                        AssetData dependencyAssetData = AssetDataController.GetAssetData(dependency);
-                        if(dependencyAssetData != null) {
-                            string unityPackagePath = Path.Combine(
-                                System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
-                                "VAMF",
-                                dependencyAssetData.filePath
-                            ).Replace("\\", "/");
-                            AssetDatabase.ImportPackage(unityPackagePath, false);
-                        }
-                    }
-                }
+            if (!userChoice) return;
+            foreach (var unityPackagePath 
+                     in from dependency 
+                     in dependenciesList 
+                     select AssetDataController.GetAssetData(dependency) 
+                     into dependencyAssetData 
+                     where dependencyAssetData != null 
+                     select Constants.RootDirPath + "/" + dependencyAssetData.filePath) {
+                AssetDatabase.ImportPackage(unityPackagePath, false);
             }
         }
 
@@ -47,10 +41,10 @@ namespace VAMF.Editor.Utility {
                 return new List<string>();
             }
 
-            HashSet<string> visited = new HashSet<string>();
-            List<string> result = new List<string>();
+            var visited = new HashSet<string>();
+            var result = new List<string>();
 
-            foreach (string dependency in dependencies) {
+            foreach (var dependency in dependencies) {
                 Dfs(dependency, visited, result);
             }
 
@@ -62,9 +56,9 @@ namespace VAMF.Editor.Utility {
                 return;
             }
 
-            AssetData assetData = AssetDataController.GetAssetData(currentUid);
+            var assetData = AssetDataController.GetAssetData(currentUid);
             if (assetData?.dependencies != null) {
-                foreach (string dependencyUid in assetData.dependencies) {
+                foreach (var dependencyUid in assetData.dependencies) {
                     Dfs(dependencyUid, visited, result);
                 }
             }
